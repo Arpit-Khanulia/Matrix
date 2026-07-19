@@ -23,32 +23,7 @@ const Storage = {
         const historySeed = {};
         const todayDay = today.getDate();
 
-        const routines = [
-            { id: 'r1', name: 'No Porn', emoji: '🌿🚫', goal: 30, order: 0 },
-            { id: 'r2', name: 'No Alcohol', emoji: '🍾🚫', goal: 30, order: 1 },
-            { id: 'r3', name: 'Goal tracking', emoji: '📂', goal: 30, order: 2 },
-            { id: 'r4', name: 'Budget tracking', emoji: '💰', goal: 30, order: 3 },
-            { id: 'r5', name: 'Reading/Meditating', emoji: '📖', goal: 30, order: 4 },
-            { id: 'r6', name: 'Time with God', emoji: '🧘‍♀️', goal: 30, order: 5 },
-            { id: 'r7', name: 'Deep Work', emoji: '🎯', goal: 30, order: 6 },
-            { id: 'r8', name: 'Cold Shower', emoji: '🚿', goal: 30, order: 7 }
-        ];
-
-        // Seed completion states for the last 15 days
-        for (let day = 1; day <= 31; day++) {
-            const dateStr = `${year}-${month}-${String(day).padStart(2, '0')}`;
-            
-            // Limit seeding to past/current days only
-            if (day <= todayDay) {
-                historySeed[dateStr] = {};
-                // Seed random-like checks to make it look active
-                routines.forEach((r, idx) => {
-                    // high probability of check (e.g. 75%)
-                    const isChecked = (day + idx) % 4 !== 0;
-                    historySeed[dateStr][r.id] = isChecked;
-                });
-            }
-        }
+        const routines = [];
 
         return {
             routines,
@@ -57,7 +32,7 @@ const Storage = {
                 theme: 'dark',
                 soundEnabled: true
             },
-            xp: 320
+            xp: 0
         };
     },
 

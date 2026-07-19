@@ -6,9 +6,9 @@ const SyncManager = {
     // Dynamic configurations
     BACKEND_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? 'http://localhost:5000'
-        : 'https://developer-dashboard-backend.vercel.app', // Replace with your actual deployed backend URL
+        : 'https://matrix-pied-two.vercel.app', // Deployed backend endpoint
 
-    GOOGLE_CLIENT_ID: 'replace-with-your-google-client-id.apps.googleusercontent.com', // Replace with your actual Google Client ID
+    GOOGLE_CLIENT_ID: '502481790383-13ai01cm7r5e5tldqa4to1699tgdiode.apps.googleusercontent.com', // Active Google Client ID
 
     user: null,
 
@@ -68,8 +68,8 @@ const SyncManager = {
                 document.getElementById("google-signin-btn-container"),
                 { 
                     theme: "outline", 
-                    size: "medium", 
-                    width: "250",
+                    size: "large", 
+                    width: "400",
                     text: "signin_with",
                     shape: "rectangular"
                 }
