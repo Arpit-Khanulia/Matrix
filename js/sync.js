@@ -149,42 +149,42 @@ const SyncManager = {
 
     async logout() {
         try {
-            const res = await fetch(`${this.BACKEND_URL}/api/auth/logout`, { 
+            await fetch(`${this.BACKEND_URL}/api/auth/logout`, { 
                 method: 'POST',
-                credentials: 'include' // CRITICAL: Clear the JWT Cookie
+                credentials: 'include' // Clear JWT cookie on backend
             });
-            if (res.ok) {
-                this.user = null;
-                
-                // Clear all LocalStorage data, stats, and connections
-                localStorage.removeItem('retro_tracker_routines');
-                localStorage.removeItem('retro_tracker_history');
-                localStorage.removeItem('retro_tracker_xp');
-                localStorage.removeItem('developer_usernames');
-                
-                // Clear all integration API response caches (GitHub, LeetCode, etc.)
-                Object.keys(localStorage).forEach(key => {
-                    if (key.startsWith('integration_cache_')) {
-                        localStorage.removeItem(key);
-                    }
-                });
-
-                // Reset theme and settings to clean state defaults
-                localStorage.setItem('retro_tracker_settings', JSON.stringify({
-                    theme: 'retro-cyan',
-                    soundEnabled: true
-                }));
-
-                Utils.showToast("Logged out safely. Local storage & caches cleared!", "success");
-
-                // Reload the page to boot back up in a clean blank slate
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            }
         } catch (e) {
-            Utils.showToast("Failed to logout safely.", "error");
+            console.warn("Backend logout request failed, clearing local session anyway.", e);
         }
+
+        // Unconditionally wipe all local user data
+        this.user = null;
+        
+        // Clear all LocalStorage data, stats, and connections
+        localStorage.removeItem('retro_tracker_routines');
+        localStorage.removeItem('retro_tracker_history');
+        localStorage.removeItem('retro_tracker_xp');
+        localStorage.removeItem('developer_usernames');
+        
+        // Clear all integration API response caches (GitHub, LeetCode, etc.)
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('integration_cache_')) {
+                localStorage.removeItem(key);
+            }
+        });
+
+        // Reset theme and settings to clean state defaults
+        localStorage.setItem('retro_tracker_settings', JSON.stringify({
+            theme: 'retro-cyan',
+            soundEnabled: true
+        }));
+
+        Utils.showToast("Logged out safely. Local storage & caches cleared!", "success");
+
+        // Reload the page to boot back up in a clean blank slate
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
     },
 
     // -------------------------------------------------------------
@@ -266,45 +266,15 @@ const SyncManager = {
     },
 
     mergeCloudData(cloudData, silent) {
-        // 1. Merge Habits List
-        const localRoutines = Storage.getRoutines();
+        // Completely overwrite local data with cloud data (rejecting offline data in favor of account's data)
         const cloudRoutines = cloudData.routines || [];
-        
-        // If local is empty, populate from cloud. If both populated, merge based on ID matches
-        let mergedRoutines = [...localRoutines];
-        cloudRoutines.forEach(cr => {
-            if (!mergedRoutines.some(lr => lr.id === cr.id)) {
-                mergedRoutines.push(cr);
-            }
-        });
-
-        if (mergedRoutines.length === 0) {
-            mergedRoutines = cloudRoutines;
-        }
-
-        // 2. Merge History checkmarks (union of both checked dates)
-        const localHistory = Storage.getHistory();
         const cloudHistory = cloudData.history || {};
-        const mergedHistory = { ...localHistory };
-
-        Object.keys(cloudHistory).forEach(dateStr => {
-            if (!mergedHistory[dateStr]) {
-                mergedHistory[dateStr] = cloudHistory[dateStr];
-            } else {
-                // Merge routine checkbox status within this day
-                mergedHistory[dateStr] = { ...mergedHistory[dateStr], ...cloudHistory[dateStr] };
-            }
-        });
-
-        // 3. Merge XP (take highest)
-        const localXP = Storage.getXP();
         const cloudXP = cloudData.xp || 0;
-        const mergedXP = Math.max(localXP, cloudXP);
 
-        // Save back to Storage
-        localStorage.setItem('habits_routines', JSON.stringify(mergedRoutines));
-        localStorage.setItem('habits_history', JSON.stringify(mergedHistory));
-        localStorage.setItem('habits_xp', String(mergedXP));
+        // Save back to Storage using the correct retro_tracker_ keys
+        localStorage.setItem('retro_tracker_routines', JSON.stringify(cloudRoutines));
+        localStorage.setItem('retro_tracker_history', JSON.stringify(cloudHistory));
+        localStorage.setItem('retro_tracker_xp', String(cloudXP));
 
         // Re-render
         if (window.App) {
