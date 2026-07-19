@@ -72,6 +72,11 @@ const Settings = {
 
             Utils.showToast("Developer profile connections saved!", "success");
 
+            // Refresh top-right header avatar immediately if logged in
+            if (window.SyncManager && typeof window.SyncManager.updateHeaderProfile === 'function') {
+                window.SyncManager.updateHeaderProfile();
+            }
+
             // Re-render profiles dashboard if currently active
             if (document.getElementById('profiles-page').style.display !== 'none') {
                 IntegrationManager.loadAndRenderAll();

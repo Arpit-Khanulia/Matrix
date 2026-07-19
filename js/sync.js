@@ -3,10 +3,7 @@
  */
 
 const SyncManager = {
-    // Dynamic configurations
-    BACKEND_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:5000'
-        : 'https://matrix-pied-two.vercel.app', // Deployed backend endpoint
+    BACKEND_URL: 'https://matrix-pied-two.vercel.app',
 
     GOOGLE_CLIENT_ID: '502481790383-13ai01cm7r5e5tldqa4to1699tgdiode.apps.googleusercontent.com', // Active Google Client ID
 
@@ -46,6 +43,17 @@ const SyncManager = {
                 this.initializeGoogleSignIn();
             }
         });
+
+        // Header profile button click opens settings modal
+        const headerProfile = document.getElementById('header-profile-btn');
+        if (headerProfile) {
+            headerProfile.addEventListener('click', () => {
+                const settingsModal = document.getElementById('settings-modal');
+                if (settingsModal) {
+                    settingsModal.classList.add('show');
+                }
+            });
+        }
     },
 
     // -------------------------------------------------------------
@@ -305,6 +313,41 @@ const SyncManager = {
         } else {
             loggedOutPanel.style.display = 'flex';
             loggedInPanel.style.display = 'none';
+        }
+
+        // Keep the top right header profile avatar updated
+        this.updateHeaderProfile();
+    },
+
+    updateHeaderProfile() {
+        const profileBtn = document.getElementById('header-profile-btn');
+        const profileAvatar = document.getElementById('header-profile-avatar');
+        
+        if (!profileBtn || !profileAvatar) return;
+
+        if (this.user) {
+            profileBtn.style.display = 'flex';
+            
+            // Default dummy avatar
+            let avatarUrl = 'https://assets.leetcode.com/users/default_avatar.jpg';
+            
+            // Check if GitHub profile connection username is set in local storage
+            if (window.IntegrationManager && typeof window.IntegrationManager.getUsernames === 'function') {
+                const usernames = window.IntegrationManager.getUsernames();
+                if (usernames && usernames.github) {
+                    // Fetch direct GitHub avatar using their username profile shortcut
+                    avatarUrl = `https://github.com/${usernames.github}.png`;
+                } else if (this.user.picture) {
+                    // Fallback to Google user avatar picture
+                    avatarUrl = this.user.picture;
+                }
+            } else if (this.user.picture) {
+                avatarUrl = this.user.picture;
+            }
+
+            profileAvatar.src = avatarUrl;
+        } else {
+            profileBtn.style.display = 'none';
         }
     }
 };

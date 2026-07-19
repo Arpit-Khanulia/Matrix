@@ -19,8 +19,29 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // -------------------------------------------------------------
 // Express Middlewares
 // -------------------------------------------------------------
+const allowedOrigins = [
+    'http://localhost:5500',
+    'http://localhost:8000',
+    'http://127.0.0.1:5500',
+    'http://127.0.0.1:8000',
+    process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5500',
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like curl)
+        if (!origin) return callback(null, true);
+        
+        const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+        const isProd = process.env.FRONTEND_URL && (origin === process.env.FRONTEND_URL || origin.startsWith(process.env.FRONTEND_URL));
+
+        if (isLocalhost || isProd) {
+            return callback(null, true);
+        } else {
+            // Clean CORS rejection without throwing a 500 server error
+            return callback(null, false);
+        }
+    },
     credentials: true, // Required to accept cookies from cross-origin requests
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
