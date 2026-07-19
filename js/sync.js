@@ -277,8 +277,8 @@ const SyncManager = {
         localStorage.setItem('retro_tracker_xp', String(cloudXP));
 
         // Re-render
-        if (window.app && typeof window.app.renderAll === 'function') {
-            window.app.renderAll();
+        if (window.App) {
+            window.App.renderAll();
         }
 
         if (!silent) {
