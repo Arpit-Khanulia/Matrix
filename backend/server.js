@@ -33,9 +33,14 @@ app.use(cors({
         if (!origin) return callback(null, true);
         
         const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
-        const isProd = process.env.FRONTEND_URL && (origin === process.env.FRONTEND_URL || origin.startsWith(process.env.FRONTEND_URL));
+        const isGitHubPages = origin.includes('github.io');
+        const isProd = process.env.FRONTEND_URL && (
+            origin === process.env.FRONTEND_URL || 
+            origin.startsWith(process.env.FRONTEND_URL) ||
+            process.env.FRONTEND_URL.startsWith(origin)
+        );
 
-        if (isLocalhost || isProd) {
+        if (isLocalhost || isGitHubPages || isProd) {
             return callback(null, true);
         } else {
             // Clean CORS rejection without throwing a 500 server error
