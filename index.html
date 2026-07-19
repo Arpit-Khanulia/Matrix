@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix</title>
+    <link rel="icon" type="image/svg+xml" href="https://unpkg.com/pixelarticons@latest/svg/chart.svg">
+    <meta name="description" content="A high-contrast single-page retro habit tracker and routine matrix.">
+    <!-- Style Sheets -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Google Identity Services (OAuth 2.0) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <div class="app-wrapper">
+        <!-- Main Header -->
+        <header class="app-header">
+            <div class="header-logo">
+                <span class="logo-symbol">⚡</span>
+                <span class="logo-text">MATRIX</span>
+            </div>
+            <div class="header-ticker">
+                <span id="ticker-time">12:00:00 PM</span>
+                <span class="ticker-divider">|</span>
+                <span id="ticker-date">SUNDAY, JULY 19, 2026</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary btn-retro" id="btn-toggle-profiles">MY PROFILES</button>
+                <button class="btn btn-primary btn-retro" id="btn-add-routine">+ ADD ROUTINE</button>
+                <button class="btn btn-secondary btn-retro" id="btn-settings-toggle" title="Settings">SETTINGS</button>
+            </div>
+        </header>
+
+        <!-- Main Dashboard View (Grid Cards) -->
+        <main class="dashboard-grid">
+            <!-- Row 1: Left: Monthly Overview | Right: Line Chart Oscilloscope -->
+            <div class="dashboard-row top-row">
+                <!-- Card 1: Monthly Summary -->
+                <section class="retro-card glass-card card-overview">
+                    <h2 class="card-title">MONTHLY OVERVIEW</h2>
+                    <div class="overview-stats-container">
+                        <div class="stat-large">
+                            <span class="stat-number" id="overview-rate">0%</span>
+                            <span class="stat-label">CONSISTENCY SCORE</span>
+                        </div>
+                        <div class="stat-progress-bar">
+                            <div class="progressbar-text">MONTH PROGRESS [ <span id="bar-days-ratio">0/0 days</span> ]</div>
+                            <div class="progressbar-track">
+                                <div class="progressbar-fill" id="bar-month-progress" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <div class="xp-inline-stats">
+                            <span class="xp-level-txt">LEVEL <span id="overview-level">1</span></span>
+                            <span class="xp-numeric-txt"><span id="overview-xp">0</span> XP</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Card 2: Spline Graph Oscilloscope -->
+                <section class="retro-card glass-card card-chart">
+                    <h2 class="card-title">DAILY COMPLETIONS OSCILLOSCOPE</h2>
+                    <div class="oscilloscope-wrapper">
+                        <canvas id="oscilloscope-canvas"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Row 2: Central Routines Matrix Spreadsheet (Always Visible, scrollable) -->
+            <section class="retro-card glass-card card-matrix">
+                <div class="matrix-card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 8px;">
+                    <h2 class="card-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;">DAILY ROUTINES MATRIX</h2>
+                    <div class="month-selector" style="display: flex; align-items: center; gap: 12px;">
+                        <button class="btn btn-secondary btn-sm btn-retro" id="btn-matrix-prev-month">◀ PREV</button>
+                        <span id="matrix-month-display" style="font-weight: bold; letter-spacing: 0.5px; font-size: 0.95rem; text-transform: uppercase;">JULY 2026</span>
+                        <button class="btn btn-secondary btn-sm btn-retro" id="btn-matrix-next-month">NEXT ▶</button>
+                    </div>
+                </div>
+                <div class="matrix-table-container">
+                    <table class="matrix-table" id="routine-matrix-table">
+                        <thead>
+                            <tr id="matrix-week-header">
+                                <!-- Week banners generated dynamically (Week 1, Week 2...) -->
+                            </tr>
+                            <tr id="matrix-day-name-header">
+                                <!-- Mon, Tue, Wed headers -->
+                            </tr>
+                            <tr id="matrix-day-num-header">
+                                <!-- 1, 2, 3 numbers -->
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-body">
+                            <!-- Dynamic routines checklist rows generated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Row 3: Bottom Left: Overview / Analysis | Bottom Right: Actions/Settings -->
+            <div class="dashboard-row bottom-row">
+                <!-- Card 4: Analysis Counts -->
+                <section class="retro-card glass-card card-analysis">
+                    <h2 class="card-title">OVERVIEW / ANALYSIS</h2>
+                    <div class="analysis-stats">
+                        <div class="analysis-item">
+                            <span class="an-lbl color-week-2">DONE</span>
+                            <span class="an-val" id="an-done-val">0</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="an-lbl color-week-1">GOAL</span>
+                            <span class="an-val" id="an-goal-val">0</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="an-lbl color-week-4">OPEN</span>
+                            <span class="an-val" id="an-open-val">0</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Card 5: Streaks & Badges -->
+                <section class="retro-card glass-card card-streaks">
+                    <h2 class="card-title">ROUTINE PERFORMANCE</h2>
+                    <div class="streaks-summary-list" id="streaks-list-container">
+                        <!-- Loaded dynamically by JS -->
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Developer Profile View (CORS-friendly APIs integrations) -->
+        <section id="profiles-page" style="display: none; flex-direction: column; gap: 16px; flex-grow: 1;">
+            <div class="profiles-header-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: bold; font-size: 1.1rem; letter-spacing: 0.5px; font-family: var(--font-heading);">DEVELOPER DASHBOARD OVERVIEW</span>
+                    <span id="profiles-connection-badge" class="connection-badge online">ONLINE</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary btn-retro btn-sm" id="btn-refresh-profiles">REFRESH ALL</button>
+                    <button class="btn btn-secondary btn-retro btn-sm" id="btn-back-to-matrix">BACK TO TRACKER</button>
+                </div>
+            </div>
+
+            <!-- Developer Cards grid (discovered by manager) -->
+            <div class="developer-profiles-grid" id="developer-profiles-grid">
+                <!-- Loaded dynamically -->
+            </div>
+        </section>
+    </div>
+
+    <!-- settings overlay modal -->
+    <div id="settings-modal" class="modal-backdrop">
+        <div class="modal-content glass-card modal-retro">
+            <div class="modal-header">
+                <h2>SYSTEM CONFIGURATION</h2>
+                <button class="btn-close-modal" id="btn-close-settings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-title">THEME PALETTE</div>
+                        <div class="setting-desc">Select terminal style or minimalist layouts.</div>
+                    </div>
+                    <select class="text-input" id="settings-theme-select" style="width: 170px; font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase;">
+                        <option value="retro-cyan">Retro Cyan (Dark)</option>
+                        <option value="light-paper">Light Paper</option>
+                        <option value="matrix-green">Matrix Movie (Green)</option>
+                        <option value="terminal-amber">Linux Bash (Amber)</option>
+                        <option value="modern-minimal">Modern Zinc (Notion)</option>
+                    </select>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-title">AUDIO BLIPS</div>
+                        <div class="setting-desc">Synthesized retro blips on checklist toggles.</div>
+                    </div>
+                    <label class="switch-toggle">
+                        <input type="checkbox" id="settings-sound-enabled" checked>
+                        <span class="slider-round"></span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-title">EXPORT DATA</div>
+                        <div class="setting-desc">Save JSON backup file locally.</div>
+                    </div>
+                    <button class="btn btn-secondary btn-retro" id="btn-export-backup">EXPORT</button>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-title">IMPORT DATA</div>
+                        <div class="setting-desc">Restore backups from json files.</div>
+                    </div>
+                    <input type="file" id="import-file" style="display: none;" accept=".json">
+                    <button class="btn btn-secondary btn-retro" id="btn-import-trigger">IMPORT</button>
+                </div>
+                <div style="border-top: 1px solid var(--border-color); margin-top: 16px; padding-top: 16px;">
+                    <div style="font-family: var(--font-heading); font-size: 0.85rem; font-weight: bold; margin-bottom: 12px; color: var(--accent-color); letter-spacing: 0.5px;">DEVELOPER PROFILE CONNECTIONS</div>
+                    <div class="form-group">
+                        <label for="settings-github-username">GITHUB USERNAME</label>
+                        <input type="text" id="settings-github-username" placeholder="e.g. torvalds" class="text-input" style="font-size: 0.8rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="settings-leetcode-username">LEETCODE USERNAME</label>
+                        <input type="text" id="settings-leetcode-username" placeholder="e.g. anonymous" class="text-input" style="font-size: 0.8rem;">
+                    </div>
+                    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 12px;">
+                        <button type="button" class="btn btn-secondary btn-retro btn-sm" id="btn-test-connections">TEST CONNECTION</button>
+                        <button type="button" class="btn btn-primary btn-retro btn-sm" id="btn-save-connections">SAVE CONNECTIONS</button>
+                    </div>
+                </div>
+                <div style="border-top: 1px solid var(--border-color); margin-top: 16px; padding-top: 16px;">
+                    <div style="font-family: var(--font-heading); font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; color: var(--accent-color); letter-spacing: 0.5px;">GOOGLE CLOUD BACKUP & SYNC</div>
+                    
+                    <!-- Logged Out View -->
+                    <div id="sync-logged-out-panel" style="display: flex; flex-direction: column; gap: 8px;">
+                        <p style="font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 4px;">
+                            Sign in with Google to sync your routines, history, streaks, and XP score safely to MongoDB Atlas.
+                        </p>
+                        <div id="google-signin-btn-container" style="margin-top: 4px;"></div>
+                    </div>
+                    
+                    <!-- Logged In View -->
+                    <div id="sync-logged-in-panel" style="display: none; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px; background: #000; border: 1px solid var(--border-color); padding: 8px; border-radius: var(--radius-sm);">
+                            <img id="sync-user-avatar" src="" alt="Avatar" style="width: 32px; height: 32px; border: 1px solid var(--border-color); background: #000;">
+                            <div style="display: flex; flex-direction: column; gap: 2px;">
+                                <span id="sync-user-name" style="font-size: 0.75rem; font-weight: bold;">USER NAME</span>
+                                <span id="sync-user-email" style="font-size: 0.65rem; color: var(--text-muted);">email@gmail.com</span>
+                            </div>
+                            <span class="connection-badge online" style="margin-left: auto; font-size: 0.55rem; padding: 2px 4px;">SYNC ACTIVE</span>
+                        </div>
+                        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px;">
+                            <button type="button" class="btn btn-secondary btn-retro btn-sm" id="btn-sync-pull">RESTORE (PULL) ↙</button>
+                            <button type="button" class="btn btn-primary btn-retro btn-sm" id="btn-sync-push">BACKUP (PUSH) ↗</button>
+                            <button type="button" class="btn btn-danger btn-retro btn-sm" id="btn-sync-logout" style="padding: 4px 8px; font-size: 0.65rem;">LOGOUT</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-row" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
+                    <div>
+                        <div class="setting-title" style="color: var(--cat-fitness);">WIPE DATABASE</div>
+                        <div class="setting-desc">Clear routines, history, XP levels.</div>
+                    </div>
+                    <button class="btn btn-danger btn-retro" id="btn-wipe-db">WIPE ALL DATA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- routine form modal -->
+    <div id="routine-modal" class="modal-backdrop">
+        <div class="modal-content glass-card modal-retro">
+            <div class="modal-header">
+                <h2 id="routine-modal-title">EDIT ROUTINE</h2>
+                <button class="btn-close-modal" id="btn-close-routine">&times;</button>
+            </div>
+            <form id="routine-form" onsubmit="event.preventDefault();">
+                <input type="hidden" id="routine-id">
+                <div class="form-group">
+                    <label for="routine-name">ROUTINE NAME</label>
+                    <input type="text" id="routine-name" required placeholder="e.g. No Alcohol, Gym" class="text-input">
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group" style="position: relative; width: 100%;">
+                        <label for="routine-emoji">EMOJI</label>
+                        <div style="display: flex; gap: 6px; width: 100%;">
+                            <input type="text" id="routine-emoji" maxlength="2" placeholder="🔥" class="text-input" style="text-align: center; width: 50px; flex-shrink: 0;">
+                            <button type="button" class="btn btn-secondary btn-retro" id="btn-emoji-picker-toggle" style="flex-grow: 1; font-size: 0.72rem; padding: 6px 10px; height: 35px; white-space: nowrap;">CHOOSE EMOJI ⚡</button>
+                        </div>
+                        
+                        <!-- Emoji Picker dropdown panel -->
+                        <div id="routine-emoji-picker-panel" class="glass-card" style="display: none; position: absolute; top: 58px; left: 0; z-index: 1000; border: 1px solid var(--border-color); background: #000; padding: 8px; width: 230px; border-radius: var(--radius-sm);">
+                            <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+                                <input type="text" id="emoji-search-input" placeholder="Search emoji..." class="text-input" style="font-size: 0.65rem; padding: 4px 6px; flex: 1; width: 100%;">
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; max-height: 130px; overflow-y: auto;" id="emoji-picker-grid">
+                                <!-- Emojis dynamically loaded by JS -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="routine-goal-target">TARGET GOAL (DAYS)</label>
+                        <input type="number" id="routine-goal-target" min="1" max="31" value="30" class="text-input" style="width: 100%;">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger btn-retro" id="btn-delete-routine" style="display: none;">DELETE</button>
+                    <div style="display: flex; gap: 8px; margin-left: auto;">
+                        <button type="button" class="btn btn-secondary btn-retro" id="btn-cancel-routine">CANCEL</button>
+                        <button type="submit" class="btn btn-primary btn-retro">SAVE</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Global Application Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/habits.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/settings.js"></script>
+    <!-- Integrations Modules -->
+    <script src="js/integrations/manager.js"></script>
+    <script src="js/integrations/github.js"></script>
+    <script src="js/integrations/leetcode.js"></script>
+    <script src="js/integrations/codeforces.js"></script>
+    <script src="js/integrations/codechef.js"></script>
+    <script src="js/integrations/geeksforgeeks.js"></script>
+    <script src="js/integrations/hackerrank.js"></script>
+    <script src="js/integrations/atcoder.js"></script>
+    <script src="js/integrations/steam.js"></script>
+    <script src="js/integrations/spotify.js"></script>
+    <script src="js/integrations/googlecalendar.js"></script>
+    <script src="js/integrations/weather.js"></script>
+    <script src="js/integrations/googlefit.js"></script>
+    <script src="js/sync.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
