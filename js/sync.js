@@ -155,10 +155,32 @@ const SyncManager = {
             });
             if (res.ok) {
                 this.user = null;
-                this.updateSyncUI();
-                Utils.showToast("Logged out from Cloud Backup.", "info");
-                // Re-render sign in button
-                setTimeout(() => this.initializeGoogleSignIn(), 100);
+                
+                // Clear all LocalStorage data, stats, and connections
+                localStorage.removeItem('retro_tracker_routines');
+                localStorage.removeItem('retro_tracker_history');
+                localStorage.removeItem('retro_tracker_xp');
+                localStorage.removeItem('developer_usernames');
+                
+                // Clear all integration API response caches (GitHub, LeetCode, etc.)
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('integration_cache_')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+
+                // Reset theme and settings to clean state defaults
+                localStorage.setItem('retro_tracker_settings', JSON.stringify({
+                    theme: 'retro-cyan',
+                    soundEnabled: true
+                }));
+
+                Utils.showToast("Logged out safely. Local storage & caches cleared!", "success");
+
+                // Reload the page to boot back up in a clean blank slate
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             }
         } catch (e) {
             Utils.showToast("Failed to logout safely.", "error");
