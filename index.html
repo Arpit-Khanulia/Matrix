@@ -103,6 +103,54 @@
                 </div>
             </section>
 
+            <!-- Subtopic Dedicated View Container (Hidden by default, shown when viewing subtopics of a routine) -->
+            <section class="retro-card glass-card card-matrix" id="subtopics-detail-view" style="display: none;">
+                <div class="matrix-card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 8px; background: rgba(0,0,0,0.5);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button class="btn btn-secondary btn-retro btn-sm" id="btn-back-to-matrix">← ALL ROUTINES</button>
+                        <h2 class="card-title" id="subtopic-routine-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none; font-size: 1.05rem; color: var(--accent-color);">
+                            STUDY 📖 SUBCATEGORIES
+                        </h2>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button class="btn btn-secondary btn-retro btn-sm" id="btn-edit-current-routine" title="Edit Group Config">⚙️ EDIT GROUP</button>
+                        <div class="month-selector" style="display: flex; align-items: center; gap: 8px;">
+                            <button class="btn btn-secondary btn-sm btn-retro" id="btn-sub-prev-month">◀ PREV</button>
+                            <span id="sub-month-display" style="font-weight: bold; letter-spacing: 0.5px; font-size: 0.85rem; text-transform: uppercase;">AUGUST 2026</span>
+                            <button class="btn btn-secondary btn-sm btn-retro" id="btn-sub-next-month">NEXT ▶</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Split View: Left Subtopic Sidebar | Right Subtopic Matrix Calendar -->
+                <div style="display: flex; flex-direction: row; min-height: 350px; overflow-x: auto;">
+                    <!-- Left Sidebar: Subtopics List with Edit & Delete icons -->
+                    <div style="width: 260px; min-width: 240px; border-right: 1px solid var(--border-color); padding: 12px; background: rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.75rem; font-weight: bold; color: var(--text-secondary); letter-spacing: 0.5px;">SUBTOPICS LIST</span>
+                            <button class="btn btn-primary btn-retro btn-sm" id="btn-add-subtopic-sidebar" style="font-size: 0.65rem; padding: 4px 8px;">+ SUBTOPIC</button>
+                        </div>
+                        <div id="subtopics-sidebar-list" style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1;">
+                            <!-- List populated dynamically by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Right Matrix Calendar Grid -->
+                    <div class="matrix-table-container" style="flex: 1; overflow-x: auto;">
+                        <table class="matrix-table" id="subtopic-matrix-table">
+                            <thead>
+                                <tr id="sub-week-header"></tr>
+                                <tr id="sub-day-name-header"></tr>
+                                <tr id="sub-day-num-header"></tr>
+                            </thead>
+                            <tbody id="sub-matrix-body">
+                                <!-- Subtopics calendar rows generated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
             <!-- Row 3: Bottom Left: Overview / Analysis | Bottom Right: Actions/Settings -->
             <div class="dashboard-row bottom-row">
                 <!-- Card 4: Analysis Counts -->
@@ -334,6 +382,53 @@
                     <div style="display: flex; gap: 8px; margin-left: auto;">
                         <button type="button" class="btn btn-secondary btn-retro" id="btn-cancel-routine">CANCEL</button>
                         <button type="submit" class="btn btn-primary btn-retro">SAVE</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dedicated Subtopic Form Modal -->
+    <div id="subtopic-modal" class="modal-backdrop">
+        <div class="modal-content glass-card modal-retro" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 id="subtopic-modal-title">ADD SUB ROUTINE</h2>
+                <button class="btn-close-modal" id="btn-close-subtopic">&times;</button>
+            </div>
+            <form id="subtopic-form" onsubmit="event.preventDefault();">
+                <input type="hidden" id="subtopic-id">
+                <input type="hidden" id="subtopic-parent-id">
+                
+                <div class="form-group">
+                    <label for="subtopic-name">SUB ROUTINE NAME</label>
+                    <input type="text" id="subtopic-name" required placeholder="e.g. Networking, DSA, Leg Day" class="text-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="subtopic-emoji">EMOJI</label>
+                    <input type="text" id="subtopic-emoji" maxlength="2" placeholder="📌" class="text-input" style="text-align: center; width: 60px;">
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="subtopic-start-date">START DATE (CALENDAR)</label>
+                        <input type="date" id="subtopic-start-date" class="text-input" style="width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label for="subtopic-due-date">DUE DATE (CALENDAR)</label>
+                        <input type="date" id="subtopic-due-date" class="text-input" style="width: 100%;">
+                    </div>
+                </div>
+
+                <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 12px; font-style: italic;">
+                    * The sub routine will only appear active on the calendar grid between the Start Date and Due Date.
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger btn-retro" id="btn-delete-subtopic-modal" style="display: none;">DELETE</button>
+                    <div style="display: flex; gap: 8px; margin-left: auto;">
+                        <button type="button" class="btn btn-secondary btn-retro" id="btn-cancel-subtopic">CANCEL</button>
+                        <button type="submit" class="btn btn-primary btn-retro">SAVE SUB ROUTINE</button>
                     </div>
                 </div>
             </form>

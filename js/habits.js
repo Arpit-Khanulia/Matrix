@@ -12,7 +12,14 @@ const Habits = {
 
     bindEvents() {
         // Modal buttons
-        document.getElementById('btn-add-routine').addEventListener('click', () => this.openRoutineModal());
+        document.getElementById('btn-add-routine').addEventListener('click', () => {
+            if (this.currentSubtopicRoutineId) {
+                this.openSubtopicModal(null, this.currentSubtopicRoutineId);
+            } else {
+                this.openRoutineModal();
+            }
+        });
+
         document.getElementById('btn-close-routine').addEventListener('click', () => this.closeRoutineModal());
         document.getElementById('btn-cancel-routine').addEventListener('click', () => this.closeRoutineModal());
 
@@ -43,6 +50,60 @@ const Habits = {
 
         const addSubBtn = document.getElementById('btn-add-subtopic');
         if (addSubBtn) addSubBtn.addEventListener('click', () => this.handleAddSubtopic());
+
+        // Subtopic Dedicated View & Modal events
+        const backBtn = document.getElementById('btn-back-to-matrix');
+        if (backBtn) backBtn.addEventListener('click', () => this.closeSubtopicView());
+
+        const editCurrentGroupBtn = document.getElementById('btn-edit-current-routine');
+        if (editCurrentGroupBtn) editCurrentGroupBtn.addEventListener('click', () => {
+            const r = this.getCurrentSubtopicRoutine();
+            if (r) this.openRoutineModal(r);
+        });
+
+        const addSubSidebarBtn = document.getElementById('btn-add-subtopic-sidebar');
+        if (addSubSidebarBtn) addSubSidebarBtn.addEventListener('click', () => {
+            if (this.currentSubtopicRoutineId) {
+                this.openSubtopicModal(null, this.currentSubtopicRoutineId);
+            }
+        });
+
+        const closeSubtopicModalBtn = document.getElementById('btn-close-subtopic');
+        if (closeSubtopicModalBtn) closeSubtopicModalBtn.addEventListener('click', () => this.closeSubtopicModal());
+
+        const cancelSubtopicModalBtn = document.getElementById('btn-cancel-subtopic');
+        if (cancelSubtopicModalBtn) cancelSubtopicModalBtn.addEventListener('click', () => this.closeSubtopicModal());
+
+        const subtopicForm = document.getElementById('subtopic-form');
+        if (subtopicForm) subtopicForm.addEventListener('submit', (e) => this.handleSubtopicFormSubmit(e));
+
+        const delSubModalBtn = document.getElementById('btn-delete-subtopic-modal');
+        if (delSubModalBtn) delSubModalBtn.addEventListener('click', () => this.handleDeleteSubtopicModal());
+
+        // Subtopic View Month Selector
+        const subPrevMonth = document.getElementById('btn-sub-prev-month');
+        if (subPrevMonth) subPrevMonth.addEventListener('click', () => {
+            if (window.app) {
+                let m = window.app.selectedMonth - 1;
+                let y = window.app.selectedYear;
+                if (m < 0) { m = 11; y--; }
+                window.app.selectedMonth = m;
+                window.app.selectedYear = y;
+                this.renderSubtopicView();
+            }
+        });
+
+        const subNextMonth = document.getElementById('btn-sub-next-month');
+        if (subNextMonth) subNextMonth.addEventListener('click', () => {
+            if (window.app) {
+                let m = window.app.selectedMonth + 1;
+                let y = window.app.selectedYear;
+                if (m > 11) { m = 0; y++; }
+                window.app.selectedMonth = m;
+                window.app.selectedYear = y;
+                this.renderSubtopicView();
+            }
+        });
     },
 
     initEmojiPicker() {
@@ -330,7 +391,7 @@ const Habits = {
                 toggleHtml = `<button type="button" class="btn-toggle-sub" style="background: none; border: none; color: var(--accent-color); cursor: pointer; padding: 0 4px 0 0; font-size: 0.7rem; font-weight: bold;" title="Expand/Collapse Subtopics">${isExpanded ? '▼' : '▶'}</button><span style="font-size: 0.65rem; color: var(--accent-color); margin-right: 4px;">(${subCount})</span>`;
             }
 
-            nameTd.innerHTML = `${toggleHtml}<span class="routine-emoji-txt">${Utils.renderEmoji(routine.emoji)}</span> <span class="routine-name-lbl" style="cursor: pointer;">${Utils.escapeHtml(routine.name)}</span>`;
+            nameTd.innerHTML = `${toggleHtml}<span class="routine-emoji-txt">${Utils.renderEmoji(routine.emoji)}</span> <span class="routine-name-lbl" style="cursor: pointer;" title="Open Subtopics Calendar View">${Utils.escapeHtml(routine.name)}</span> <span class="btn-edit-routine-icon" style="cursor: pointer; opacity: 0.7; font-size: 0.72rem; margin-left: 4px;" title="Edit Routine Config">✏️</span>`;
 
             if (hasSubcategories) {
                 const toggleBtn = nameTd.querySelector('.btn-toggle-sub');
@@ -347,11 +408,19 @@ const Habits = {
                 }
             }
 
+            const editIcon = nameTd.querySelector('.btn-edit-routine-icon');
+            if (editIcon) {
+                editIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openRoutineModal(routine);
+                });
+            }
+
             const nameLbl = nameTd.querySelector('.routine-name-lbl');
             if (nameLbl) {
-                nameLbl.addEventListener('click', () => this.openRoutineModal(routine));
+                nameLbl.addEventListener('click', () => this.openSubtopicView(routine.id));
             } else {
-                nameTd.addEventListener('click', () => this.openRoutineModal(routine));
+                nameTd.addEventListener('click', () => this.openSubtopicView(routine.id));
             }
 
             // Goal target cell
@@ -923,6 +992,380 @@ Requirements:
         const count = validNewRoutines.length;
         Utils.showToast(`Successfully imported ${count} routine${count > 1 ? 's' : ''}! +15 XP`, "success");
         Storage.addXP(15);
+    },
+
+    // -------------------------------------------------------------
+    // Subtopics Dedicated View Workflows & Modal Handling
+    // -------------------------------------------------------------
+    openSubtopicView(routineId) {
+        this.currentSubtopicRoutineId = routineId;
+        
+        const mainView = document.querySelector('.card-matrix:not(#subtopics-detail-view)');
+        const subView = document.getElementById('subtopics-detail-view');
+        const addBtn = document.getElementById('btn-add-routine');
+
+        if (mainView) mainView.style.display = 'none';
+        if (subView) subView.style.display = 'block';
+
+        if (addBtn) {
+            addBtn.textContent = '+ ADD SUB ROUTINE';
+            addBtn.title = 'Add Sub Routine to current topic';
+        }
+
+        this.renderSubtopicView();
+    },
+
+    closeSubtopicView() {
+        this.currentSubtopicRoutineId = null;
+
+        const mainView = document.querySelector('.card-matrix:not(#subtopics-detail-view)');
+        const subView = document.getElementById('subtopics-detail-view');
+        const addBtn = document.getElementById('btn-add-routine');
+
+        if (mainView) mainView.style.display = 'block';
+        if (subView) subView.style.display = 'none';
+
+        if (addBtn) {
+            addBtn.textContent = '+ ADD ROUTINE';
+            addBtn.title = 'Add new routine';
+        }
+
+        this.renderMatrix();
+    },
+
+    getCurrentSubtopicRoutine() {
+        if (!this.currentSubtopicRoutineId) return null;
+        const routines = Storage.getRoutines();
+        return routines.find(r => r.id === this.currentSubtopicRoutineId) || null;
+    },
+
+    renderSubtopicView() {
+        const routine = this.getCurrentSubtopicRoutine();
+        if (!routine) {
+            this.closeSubtopicView();
+            return;
+        }
+
+        // Title
+        const titleEl = document.getElementById('subtopic-routine-title');
+        if (titleEl) {
+            titleEl.innerHTML = `${Utils.renderEmoji(routine.emoji)} ${Utils.escapeHtml(routine.name).toUpperCase()} <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: normal;">[SUBCATEGORIES VIEW]</span>`;
+        }
+
+        // Render Left Sidebar List
+        const sidebarList = document.getElementById('subtopics-sidebar-list');
+        if (sidebarList) {
+            sidebarList.innerHTML = '';
+
+            const subcategories = routine.subcategories || [];
+            if (subcategories.length === 0) {
+                sidebarList.innerHTML = '<div style="font-size: 0.7rem; color: var(--text-muted); font-style: italic; padding: 12px 0;">No subtopics yet. Click "+ SUBTOPIC" to add your first sub routine.</div>';
+            } else {
+                subcategories.forEach((sub, idx) => {
+                    const card = document.createElement('div');
+                    card.className = 'glass-card';
+                    card.style.padding = '8px 10px';
+                    card.style.display = 'flex';
+                    card.style.flexDirection = 'column';
+                    card.style.gap = '4px';
+                    card.style.border = '1px solid var(--border-color)';
+                    card.style.borderRadius = 'var(--radius-sm)';
+                    card.style.background = '#000';
+
+                    let dateBadge = '';
+                    if (sub.startDate || sub.dueDate) {
+                        const sStr = sub.startDate ? sub.startDate : 'Start';
+                        const dStr = sub.dueDate ? sub.dueDate : 'Due';
+                        dateBadge = `<div style="font-size: 0.58rem; color: var(--accent-color); font-family: monospace;">📅 ${sStr} → ${dStr}</div>`;
+                    }
+
+                    card.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 0.78rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
+                                <span>${Utils.renderEmoji(sub.emoji || '📌')}</span>
+                                <span title="${Utils.escapeHtml(sub.name)}">${Utils.escapeHtml(sub.name)}</span>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" class="btn btn-secondary btn-retro btn-sm btn-edit-sub" style="padding: 2px 6px; font-size: 0.65rem;" title="Edit Subtopic">✏️</button>
+                                <button type="button" class="btn btn-danger btn-retro btn-sm btn-del-sub" style="padding: 2px 6px; font-size: 0.65rem;" title="Delete Subtopic">&times;</button>
+                            </div>
+                        </div>
+                        ${dateBadge}
+                    `;
+
+                    // Edit button click listener
+                    card.querySelector('.btn-edit-sub').addEventListener('click', () => {
+                        this.openSubtopicModal(sub, routine.id);
+                    });
+
+                    // Delete button click listener
+                    card.querySelector('.btn-del-sub').addEventListener('click', () => {
+                        Utils.confirm("Delete Subtopic", `Are you sure you want to delete "${sub.name}"?`, () => {
+                            routine.subcategories.splice(idx, 1);
+                            const routines = Storage.getRoutines();
+                            const rIdx = routines.findIndex(r => r.id === routine.id);
+                            if (rIdx !== -1) {
+                                routines[rIdx] = routine;
+                                Storage.saveRoutines(routines);
+                            }
+                            this.renderSubtopicView();
+                            window.dispatchEvent(new CustomEvent('habits-changed'));
+                        });
+                    });
+
+                    sidebarList.appendChild(card);
+                });
+            }
+        }
+
+        // Render Right Subtopic Matrix Table
+        this.renderSubtopicMatrixTable(routine);
+    },
+
+    renderSubtopicMatrixTable(routine) {
+        const history = Storage.getHistory();
+        const today = new Date();
+        const year = window.app ? window.app.selectedYear : today.getFullYear();
+        const monthIndex = window.app ? window.app.selectedMonth : today.getMonth(); // 0-11
+        const totalDays = new Date(year, monthIndex + 1, 0).getDate();
+
+        // Display month
+        const monthNames = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+        const subMonthDisp = document.getElementById('sub-month-display');
+        if (subMonthDisp) subMonthDisp.textContent = `${monthNames[monthIndex]} ${year}`;
+
+        // Headers
+        const weekHeader = document.getElementById('sub-week-header');
+        const nameHeader = document.getElementById('sub-day-name-header');
+        const numHeader = document.getElementById('sub-day-num-header');
+
+        weekHeader.innerHTML = '<th rowspan="3" style="border-bottom: 2px solid var(--border-color); min-width: 120px;">SUB ROUTINE</th>';
+        nameHeader.innerHTML = '';
+        numHeader.innerHTML = '';
+
+        const weekRanges = [
+            { name: 'WEEK 1', start: 1, end: 7, class: 'week-col-1' },
+            { name: 'WEEK 2', start: 8, end: 14, class: 'week-col-2' },
+            { name: 'WEEK 3', start: 15, end: 21, class: 'week-col-3' },
+            { name: 'WEEK 4', start: 22, end: 28, class: 'week-col-4' },
+            { name: 'WEEK 5', start: 29, end: totalDays, class: 'week-col-5' }
+        ];
+
+        weekRanges.forEach(w => {
+            if (w.start <= totalDays) {
+                const span = Math.min(w.end, totalDays) - w.start + 1;
+                const th = document.createElement('th');
+                th.className = `week-header-cell ${w.class}`;
+                th.colSpan = span;
+                th.textContent = w.name;
+                weekHeader.appendChild(th);
+            }
+        });
+
+        const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const todayDayNum = today.getDate();
+        const actualYear = today.getFullYear();
+        const actualMonth = today.getMonth();
+
+        for (let day = 1; day <= totalDays; day++) {
+            const dateObj = new Date(year, monthIndex, day);
+            const dayOfWeek = dayLabels[dateObj.getDay()];
+            const isToday = day === todayDayNum && year === actualYear && monthIndex === actualMonth;
+
+            const nameTh = document.createElement('th');
+            nameTh.className = `day-name-cell ${isToday ? 'today' : ''}`;
+            nameTh.textContent = dayOfWeek.substring(0, 3);
+            nameHeader.appendChild(nameTh);
+
+            const numTh = document.createElement('th');
+            numTh.className = `day-num-cell ${isToday ? 'today' : ''}`;
+            numTh.textContent = day;
+            numHeader.appendChild(numTh);
+        }
+
+        // Body
+        const tbody = document.getElementById('sub-matrix-body');
+        tbody.innerHTML = '';
+
+        const subcategories = routine.subcategories || [];
+        if (subcategories.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="${1 + totalDays}" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                        No sub routines added yet. Click "+ SUBTOPIC" to add your first subtopic.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const monthStr = String(monthIndex + 1).padStart(2, '0');
+
+        subcategories.forEach(sub => {
+            const tr = document.createElement('tr');
+            
+            const nameTd = document.createElement('td');
+            nameTd.className = 'routine-title-cell';
+            nameTd.innerHTML = `<span class="routine-emoji-txt">${Utils.renderEmoji(sub.emoji || '📌')}</span> ${Utils.escapeHtml(sub.name)}`;
+            tr.appendChild(nameTd);
+
+            for (let day = 1; day <= totalDays; day++) {
+                const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
+                const td = document.createElement('td');
+                td.className = 'matrix-chk-cell';
+                if (day === todayDayNum && year === actualYear && monthIndex === actualMonth) {
+                    td.className += ' today';
+                }
+
+                // Check active range
+                let isActiveRange = true;
+                if (sub.startDate && dateStr < sub.startDate) isActiveRange = false;
+                if (sub.dueDate && dateStr > sub.dueDate) isActiveRange = false;
+
+                if (!isActiveRange) {
+                    td.style.opacity = '0.15';
+                    td.innerHTML = '<span style="font-size: 0.6rem; color: var(--text-muted);">-</span>';
+                    td.title = `Inactive outside active dates (${sub.startDate || 'Start'} to ${sub.dueDate || 'Due'})`;
+                } else {
+                    const isChecked = history[dateStr]?.[sub.id] === true;
+                    const weekIndex = Math.ceil(day / 7);
+
+                    const checkbox = document.createElement('div');
+                    checkbox.className = 'matrix-checkbox';
+                    
+                    if (isChecked) {
+                        checkbox.classList.add(`checked-w${weekIndex}`);
+                    }
+
+                    const isFuture = dateStr > Utils.getTodayStr();
+                    if (isFuture) {
+                        checkbox.style.opacity = '0.15';
+                        checkbox.style.cursor = 'not-allowed';
+                    } else {
+                        checkbox.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.toggleCheckbox(checkbox, dateStr, sub.id, weekIndex);
+                        });
+                    }
+
+                    td.appendChild(checkbox);
+                }
+
+                tr.appendChild(td);
+            }
+
+            tbody.appendChild(tr);
+        });
+    },
+
+    openSubtopicModal(subtopic = null, parentRoutineId) {
+        const modal = document.getElementById('subtopic-modal');
+        const form = document.getElementById('subtopic-form');
+        const titleEl = document.getElementById('subtopic-modal-title');
+        
+        form.reset();
+        document.getElementById('subtopic-parent-id').value = parentRoutineId;
+
+        if (subtopic) {
+            titleEl.textContent = "EDIT SUB ROUTINE";
+            document.getElementById('subtopic-id').value = subtopic.id;
+            document.getElementById('subtopic-name').value = subtopic.name;
+            document.getElementById('subtopic-emoji').value = subtopic.emoji || '📌';
+            document.getElementById('subtopic-start-date').value = subtopic.startDate || '';
+            document.getElementById('subtopic-due-date').value = subtopic.dueDate || '';
+            document.getElementById('btn-delete-subtopic-modal').style.display = 'inline-flex';
+        } else {
+            titleEl.textContent = "ADD SUB ROUTINE";
+            document.getElementById('subtopic-id').value = '';
+            document.getElementById('subtopic-emoji').value = '📌';
+            document.getElementById('subtopic-start-date').value = '';
+            document.getElementById('subtopic-due-date').value = '';
+            document.getElementById('btn-delete-subtopic-modal').style.display = 'none';
+        }
+
+        modal.classList.add('show');
+    },
+
+    closeSubtopicModal() {
+        document.getElementById('subtopic-modal').classList.remove('show');
+    },
+
+    handleSubtopicFormSubmit(e) {
+        e.preventDefault();
+
+        const parentId = document.getElementById('subtopic-parent-id').value;
+        const subId = document.getElementById('subtopic-id').value;
+        const name = document.getElementById('subtopic-name').value.trim();
+        const emoji = document.getElementById('subtopic-emoji').value.trim() || '📌';
+        const startDate = document.getElementById('subtopic-start-date').value || null;
+        const dueDate = document.getElementById('subtopic-due-date').value || null;
+
+        if (!parentId || !name) return;
+
+        const routines = Storage.getRoutines();
+        const routine = routines.find(r => r.id === parentId);
+        if (!routine) return;
+
+        routine.subcategories = routine.subcategories || [];
+
+        if (subId) {
+            // Edit existing
+            const sub = routine.subcategories.find(s => s.id === subId);
+            if (sub) {
+                sub.name = name;
+                sub.emoji = emoji;
+                sub.startDate = startDate;
+                sub.dueDate = dueDate;
+            }
+            Utils.showToast("Sub routine updated!", "success");
+        } else {
+            // Create new
+            routine.subcategories.push({
+                id: 'sub-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+                name,
+                emoji,
+                startDate,
+                dueDate
+            });
+            Utils.showToast("Sub routine added!", "success");
+        }
+
+        Storage.saveRoutines(routines);
+        this.closeSubtopicModal();
+
+        if (this.currentSubtopicRoutineId === parentId) {
+            this.renderSubtopicView();
+        } else {
+            this.renderMatrix();
+        }
+
+        window.dispatchEvent(new CustomEvent('habits-changed'));
+    },
+
+    handleDeleteSubtopicModal() {
+        const parentId = document.getElementById('subtopic-parent-id').value;
+        const subId = document.getElementById('subtopic-id').value;
+        if (!parentId || !subId) return;
+
+        Utils.confirm("Delete Sub Routine", "Are you sure you want to delete this sub routine?", () => {
+            const routines = Storage.getRoutines();
+            const routine = routines.find(r => r.id === parentId);
+            if (routine && routine.subcategories) {
+                const sIdx = routine.subcategories.findIndex(s => s.id === subId);
+                if (sIdx !== -1) {
+                    routine.subcategories.splice(sIdx, 1);
+                    Storage.saveRoutines(routines);
+                }
+            }
+
+            this.closeSubtopicModal();
+            if (this.currentSubtopicRoutineId === parentId) {
+                this.renderSubtopicView();
+            } else {
+                this.renderMatrix();
+            }
+            window.dispatchEvent(new CustomEvent('habits-changed'));
+        });
     }
 };
 
