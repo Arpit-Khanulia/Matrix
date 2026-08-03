@@ -21,6 +21,25 @@ const Habits = {
 
         // Delete routine
         document.getElementById('btn-delete-routine').addEventListener('click', () => this.handleDeleteRoutine());
+
+        // JSON / AI Import Modal events
+        const toggleBtn = document.getElementById('btn-json-import-toggle');
+        if (toggleBtn) toggleBtn.addEventListener('click', () => this.openJsonImportModal());
+
+        const settingsToggleBtn = document.getElementById('btn-json-import-settings');
+        if (settingsToggleBtn) settingsToggleBtn.addEventListener('click', () => this.openJsonImportModal());
+
+        const closeBtn = document.getElementById('btn-close-json-import');
+        if (closeBtn) closeBtn.addEventListener('click', () => this.closeJsonImportModal());
+
+        const cancelBtn = document.getElementById('btn-cancel-json-import');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => this.closeJsonImportModal());
+
+        const submitBtn = document.getElementById('btn-submit-json-import');
+        if (submitBtn) submitBtn.addEventListener('click', () => this.handleJsonImportSubmit());
+
+        const copyPromptBtn = document.getElementById('btn-copy-llm-prompt');
+        if (copyPromptBtn) copyPromptBtn.addEventListener('click', () => this.copyLlmPrompt());
     },
 
     initEmojiPicker() {
@@ -513,6 +532,139 @@ const Habits = {
             this.renderMatrix();
             window.dispatchEvent(new CustomEvent('habits-changed'));
         });
+    },
+
+    // -------------------------------------------------------------
+    // JSON / AI Import Workflows
+    // -------------------------------------------------------------
+    openJsonImportModal() {
+        const modal = document.getElementById('json-import-modal');
+        if (!modal) return;
+        modal.classList.add('show');
+    },
+
+    closeJsonImportModal() {
+        const modal = document.getElementById('json-import-modal');
+        if (modal) modal.classList.remove('show');
+    },
+
+    copyLlmPrompt() {
+        const promptText = `Act as a personal productivity and habit coach. Generate a JSON list of 5 to 10 daily habits/routines for my goals.
+
+Return ONLY a valid raw JSON array of objects with no markdown formatting or extra text outside the JSON array.
+
+Each object must follow this exact schema:
+[
+  {
+    "name": "Habit Name Here",
+    "emoji": "⚡",
+    "goal": 30
+  }
+]
+
+Requirements:
+- "name": Concise name of the habit (e.g., "LeetCode Problem", "Deep Work 2hrs", "Drink 3L Water").
+- "emoji": A single matching emoji for the habit (e.g. 💻, 🎯, 💧, 📖, 🧘‍♂️).
+- "goal": Target goal in days (integer, default 30).`;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(promptText).then(() => {
+                Utils.showToast("AI Prompt copied to clipboard! 📋", "success");
+            }).catch(() => {
+                this.fallbackCopyPrompt(promptText);
+            });
+        } else {
+            this.fallbackCopyPrompt(promptText);
+        }
+    },
+
+    fallbackCopyPrompt(text) {
+        const textarea = document.getElementById('json-import-input');
+        if (textarea) {
+            textarea.value = text;
+            textarea.select();
+            document.execCommand('copy');
+            Utils.showToast("AI Prompt copied to text box!", "info");
+        }
+    },
+
+    handleJsonImportSubmit() {
+        const textarea = document.getElementById('json-import-input');
+        const replaceModeCheckbox = document.getElementById('json-import-replace-mode');
+        if (!textarea) return;
+
+        const rawText = textarea.value.trim();
+        if (!rawText) {
+            Utils.showToast("Please paste JSON content first.", "warning");
+            return;
+        }
+
+        let parsedData;
+        try {
+            // Strip potential markdown code fence markers ```json ... ``` if pasted directly from ChatGPT
+            const cleanedText = rawText.replace(/^```(json)?/gi, '').replace(/```$/g, '').trim();
+            parsedData = JSON.parse(cleanedText);
+        } catch (err) {
+            console.error("JSON parse error:", err);
+            Utils.showToast("Invalid JSON syntax! Please check your formatting.", "error");
+            return;
+        }
+
+        // Handle array, wrapper object, or single item
+        let routinesToProcess = [];
+        if (Array.isArray(parsedData)) {
+            routinesToProcess = parsedData;
+        } else if (parsedData && Array.isArray(parsedData.routines)) {
+            routinesToProcess = parsedData.routines;
+        } else if (parsedData && typeof parsedData === 'object' && parsedData.name) {
+            routinesToProcess = [parsedData];
+        } else {
+            Utils.showToast("Could not find valid routines in JSON. Expected array or object with 'name'.", "warning");
+            return;
+        }
+
+        const existingRoutines = Storage.getRoutines();
+        const isReplaceMode = replaceModeCheckbox ? replaceModeCheckbox.checked : false;
+
+        let baseIndex = isReplaceMode ? 0 : existingRoutines.length;
+        const validNewRoutines = [];
+
+        routinesToProcess.forEach((item, idx) => {
+            if (item && typeof item === 'object' && item.name && String(item.name).trim() !== '') {
+                validNewRoutines.push({
+                    id: 'routine-' + Date.now() + '-' + idx,
+                    name: String(item.name).trim(),
+                    emoji: (item.emoji && String(item.emoji).trim()) ? String(item.emoji).trim() : '⚡',
+                    goal: parseInt(item.goal, 10) || 30,
+                    order: baseIndex + idx
+                });
+            }
+        });
+
+        if (validNewRoutines.length === 0) {
+            Utils.showToast("No valid routines found in JSON. Each routine must have a 'name'.", "warning");
+            return;
+        }
+
+        const updatedRoutines = isReplaceMode 
+            ? validNewRoutines 
+            : [...existingRoutines, ...validNewRoutines];
+
+        Storage.saveRoutines(updatedRoutines);
+
+        // Clear input
+        textarea.value = '';
+
+        // Close modal and re-render dashboard
+        this.closeJsonImportModal();
+        this.renderMatrix();
+
+        // Trigger global state events & cloud sync
+        window.dispatchEvent(new CustomEvent('habits-changed'));
+
+        const count = validNewRoutines.length;
+        Utils.showToast(`Successfully imported ${count} routine${count > 1 ? 's' : ''}! +15 XP`, "success");
+        Storage.addXP(15);
     }
 };
 
