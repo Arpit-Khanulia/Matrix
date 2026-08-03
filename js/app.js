@@ -163,7 +163,17 @@ const App = {
         const width = canvas.width;
         const height = canvas.height;
 
-        const routines = Storage.getRoutines();
+        let routines = Storage.getRoutines();
+        const isSubtopicsView = window.Habits && window.Habits.currentSubtopicRoutineId;
+        let activeSubtopicRoutine = null;
+
+        if (isSubtopicsView) {
+            activeSubtopicRoutine = window.Habits.getCurrentSubtopicRoutine();
+            if (activeSubtopicRoutine) {
+                routines = activeSubtopicRoutine.subcategories || [];
+            }
+        }
+
         const history = Storage.getHistory();
         
         const today = new Date();
@@ -203,7 +213,7 @@ const App = {
         
         const gridColor = isLight ? 'rgba(0, 0, 0, 0.06)' : `rgba(${accentRGB}, 0.05)`;
         const oscColor = accentColor;
-        const maxRoutines = Math.max(routines.length, 5);
+        const maxRoutines = Math.max(routines.length, 4);
 
         // 1. Draw Oscilloscope Grid lines (Horizontal/Vertical)
         ctx.strokeStyle = gridColor;
@@ -251,7 +261,11 @@ const App = {
             
             let count = 0;
             routines.forEach(r => {
-                if (dayHistory[r.id] === true) {
+                let isActive = true;
+                if (r.startDate && dateStr < r.startDate) isActive = false;
+                if (r.dueDate && dateStr > r.dueDate) isActive = false;
+
+                if (isActive && dayHistory[r.id] === true) {
                     count++;
                 }
             });

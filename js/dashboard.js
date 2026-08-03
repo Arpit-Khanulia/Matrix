@@ -20,12 +20,39 @@ const Dashboard = {
     },
 
     render() {
-        const routines = Storage.getRoutines();
+        let routines = Storage.getRoutines();
         const history = Storage.getHistory();
         const today = new Date();
         const year = window.app ? window.app.selectedYear : today.getFullYear();
         const monthIndex = window.app ? window.app.selectedMonth : today.getMonth();
         const totalDays = new Date(year, monthIndex + 1, 0).getDate();
+
+        // Check if viewing subtopics for a specific routine
+        const isSubtopicsView = window.Habits && window.Habits.currentSubtopicRoutineId;
+        let activeSubtopicRoutine = null;
+
+        if (isSubtopicsView) {
+            activeSubtopicRoutine = window.Habits.getCurrentSubtopicRoutine();
+            if (activeSubtopicRoutine) {
+                routines = activeSubtopicRoutine.subcategories || [];
+            }
+        }
+
+        // Update card title headers dynamically
+        const titleOverview = document.getElementById('card-title-overview');
+        const titleAnalysis = document.getElementById('card-title-analysis');
+        const titlePerformance = document.getElementById('card-title-performance');
+
+        if (isSubtopicsView && activeSubtopicRoutine) {
+            const prefix = `${Utils.renderEmoji(activeSubtopicRoutine.emoji)} ${Utils.escapeHtml(activeSubtopicRoutine.name).toUpperCase()}`;
+            if (titleOverview) titleOverview.innerHTML = `${prefix} OVERVIEW`;
+            if (titleAnalysis) titleAnalysis.innerHTML = `${prefix} ANALYSIS`;
+            if (titlePerformance) titlePerformance.innerHTML = `${prefix} SUB ROUTINE PERFORMANCE`;
+        } else {
+            if (titleOverview) titleOverview.textContent = "MONTHLY OVERVIEW";
+            if (titleAnalysis) titleAnalysis.textContent = "OVERVIEW / ANALYSIS";
+            if (titlePerformance) titlePerformance.textContent = "ROUTINE PERFORMANCE";
+        }
         
         const actualYear = today.getFullYear();
         const actualMonth = today.getMonth();
@@ -53,9 +80,15 @@ const Dashboard = {
         for (let day = 1; day <= daysToCount; day++) {
             const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
             routines.forEach(r => {
-                totalScheduledTicks++;
-                if (history[dateStr]?.[r.id] === true) {
-                    totalCompletedTicks++;
+                let isActiveDay = true;
+                if (r.startDate && dateStr < r.startDate) isActiveDay = false;
+                if (r.dueDate && dateStr > r.dueDate) isActiveDay = false;
+
+                if (isActiveDay) {
+                    totalScheduledTicks++;
+                    if (history[dateStr]?.[r.id] === true) {
+                        totalCompletedTicks++;
+                    }
                 }
             });
         }
@@ -83,7 +116,11 @@ const Dashboard = {
 
         // Sum goals
         routines.forEach(r => {
-            goalCount += r.goal || 30;
+            if (isSubtopicsView) {
+                goalCount += Utils.calculateSubtopicGoal(r, year, monthIndex);
+            } else {
+                goalCount += r.goal || 30;
+            }
         });
 
         // Sum done checks across the full month so far

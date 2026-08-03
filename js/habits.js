@@ -80,8 +80,8 @@ const Habits = {
             if (r) this.openRoutineModal(r);
         });
 
-        const addSubSidebarBtn = document.getElementById('btn-add-subtopic-sidebar');
-        if (addSubSidebarBtn) addSubSidebarBtn.addEventListener('click', () => {
+        const addSubHeaderBtn = document.getElementById('btn-add-subtopic-header');
+        if (addSubHeaderBtn) addSubHeaderBtn.addEventListener('click', () => {
             if (this.currentSubtopicRoutineId) {
                 this.openSubtopicModal(null, this.currentSubtopicRoutineId);
             }
@@ -534,6 +534,9 @@ const Habits = {
             // -------------------------------------------------------------
             if (isExpanded) {
                 routine.subcategories.forEach(sub => {
+                    const subColor = sub.color || Utils.getRandomVibrantColor();
+                    sub.color = subColor;
+
                     const subTr = document.createElement('tr');
                     subTr.className = 'subcategory-row';
                     subTr.style.background = 'rgba(0, 0, 0, 0.45)';
@@ -544,23 +547,21 @@ const Habits = {
                     const subNameTd = document.createElement('td');
                     subNameTd.className = 'routine-title-cell';
                     subNameTd.style.paddingLeft = '22px';
-                    subNameTd.style.fontSize = '0.7rem';
-                    subNameTd.style.color = 'var(--text-secondary)';
-
-                    let subDateTag = '';
-                    if (sub.startDate || sub.dueDate) {
-                        const sTag = sub.startDate ? sub.startDate.substring(5) : 'Start';
-                        const dTag = sub.dueDate ? sub.dueDate.substring(5) : 'Due';
-                        subDateTag = ` <span style="font-size: 0.58rem; color: var(--accent-color); font-family: monospace;">[${sTag} → ${dTag}]</span>`;
-                    }
-
-                    subNameTd.innerHTML = `<span style="color: var(--accent-color); opacity: 0.7;">↳</span> <span class="routine-emoji-txt">${Utils.renderEmoji(sub.emoji || '📌')}</span> ${Utils.escapeHtml(sub.name)}${subDateTag}`;
+                    subNameTd.style.cursor = 'pointer';
+                    subNameTd.title = 'Click to edit subtopic';
+                    subNameTd.innerHTML = `<span style="color: ${subColor}; font-weight: bold;">↳</span> <span class="routine-emoji-txt">${Utils.renderEmoji(sub.emoji || '📌')}</span> ${Utils.escapeHtml(sub.name)}${subDateTag}`;
                     
+                    subNameTd.addEventListener('click', () => {
+                        this.openSubtopicModal(sub, routine.id);
+                    });
+                    
+                    const subGoal = Utils.calculateSubtopicGoal(sub, year, monthIndex);
                     const subGoalTd = document.createElement('td');
                     subGoalTd.className = 'goal-val-cell';
-                    subGoalTd.style.fontSize = '0.65rem';
-                    subGoalTd.style.color = 'var(--text-muted)';
-                    subGoalTd.textContent = '-';
+                    subGoalTd.style.fontSize = '0.68rem';
+                    subGoalTd.style.color = subColor;
+                    subGoalTd.style.fontWeight = 'bold';
+                    subGoalTd.textContent = subGoal;
 
                     subTr.appendChild(subDragTd);
                     subTr.appendChild(subNameTd);
@@ -580,29 +581,42 @@ const Habits = {
                         if (sub.dueDate && dateStr > sub.dueDate) isActiveRange = false;
 
                         if (!isActiveRange) {
-                            subTd.style.opacity = '0.2';
+                            subTd.style.opacity = '0.12';
                             subTd.innerHTML = '<span style="font-size: 0.6rem; color: var(--text-muted);">-</span>';
                             subTd.title = `Subtopic inactive (${sub.startDate || 'Any'} to ${sub.dueDate || 'Any'})`;
                         } else {
+                            subTd.style.background = `${subColor}22`;
+                            subTd.style.borderTop = `1px solid ${subColor}55`;
+                            subTd.style.borderBottom = `1px solid ${subColor}55`;
+
                             const isSubChecked = history[dateStr]?.[sub.id] === true;
-                            const weekIndex = Math.ceil(day / 7);
                             const checkbox = document.createElement('div');
                             checkbox.className = 'matrix-checkbox';
                             checkbox.style.width = '13px';
                             checkbox.style.height = '13px';
+                            checkbox.style.borderColor = subColor;
 
                             if (isSubChecked) {
-                                checkbox.classList.add(`checked-w${weekIndex}`);
+                                checkbox.style.background = subColor;
+                                checkbox.style.boxShadow = `0 0 8px ${subColor}`;
                             }
 
                             const isFuture = dateStr > Utils.getTodayStr();
                             if (isFuture) {
-                                checkbox.style.opacity = '0.15';
+                                checkbox.style.opacity = '0.2';
                                 checkbox.style.cursor = 'not-allowed';
                             } else {
                                 checkbox.addEventListener('click', (e) => {
                                     e.stopPropagation();
-                                    this.toggleCheckbox(checkbox, dateStr, sub.id, weekIndex);
+                                    const isNowChecked = Storage.toggleRoutineCheck(dateStr, sub.id);
+                                    if (isNowChecked) {
+                                        checkbox.style.background = subColor;
+                                        checkbox.style.boxShadow = `0 0 8px ${subColor}`;
+                                    } else {
+                                        checkbox.style.background = '';
+                                        checkbox.style.boxShadow = '';
+                                    }
+                                    window.dispatchEvent(new CustomEvent('habits-changed'));
                                 });
                             }
                             subTd.appendChild(checkbox);
@@ -900,7 +914,7 @@ const Habits = {
 
 Return ONLY a valid raw JSON array of objects with no markdown formatting or extra text outside the JSON array.
 
-Each object can have main topics (like Study, Gym) and optional subcategories (like Networking, DSA under Study). You can specify optional "startDate" and "dueDate" (in YYYY-MM-DD format) for subcategories.
+Each object can have main topics (like Study, Gym) and optional subcategories (like Networking, DSA under Study). For subcategories, you can specify optional "startDate" and "dueDate" (in YYYY-MM-DD format) and optional "color" (hex color code e.g. #00f0ff, #ff007f, #00ff66, #ffb700, #9d00ff).
 
 Each object must follow this exact schema:
 [
@@ -913,13 +927,15 @@ Each object must follow this exact schema:
         "name": "Networking",
         "emoji": "🌐",
         "startDate": "2026-08-01",
-        "dueDate": "2026-08-15"
+        "dueDate": "2026-08-15",
+        "color": "#00f0ff"
       },
       {
         "name": "Data Structures & Algorithms",
         "emoji": "💻",
         "startDate": "2026-08-05",
-        "dueDate": "2026-08-31"
+        "dueDate": "2026-08-31",
+        "color": "#ff007f"
       }
     ]
   },
@@ -928,8 +944,8 @@ Each object must follow this exact schema:
     "emoji": "🏋️‍♂️",
     "goal": 30,
     "subcategories": [
-      { "name": "Leg Day Routine", "emoji": "🦵" },
-      { "name": "Push Ups & Core", "emoji": "💪" }
+      { "name": "Leg Day Routine", "emoji": "🦵", "color": "#00ff66" },
+      { "name": "Push Ups & Core", "emoji": "💪", "color": "#ffb700" }
     ]
   }
 ]
@@ -938,7 +954,7 @@ Requirements:
 - "name": Concise name of the habit or subtopic.
 - "emoji": A single matching emoji for the habit or subtopic.
 - "goal": Integer representing target days (default 30).
-- "subcategories": Optional array of subtopics, with optional "startDate" (YYYY-MM-DD) and "dueDate" (YYYY-MM-DD).`;
+- "subcategories": Optional array of subtopics with optional "startDate" (YYYY-MM-DD), "dueDate" (YYYY-MM-DD), and "color" (Hex code).`;
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(promptText).then(() => {
@@ -1010,7 +1026,8 @@ Requirements:
                     name: String(sub.name || 'Subtopic').trim(),
                     emoji: (sub.emoji && String(sub.emoji).trim()) ? String(sub.emoji).trim() : '📌',
                     startDate: sub.startDate || sub.start_date || null,
-                    dueDate: sub.dueDate || sub.due_date || null
+                    dueDate: sub.dueDate || sub.due_date || null,
+                    color: (sub.color && String(sub.color).trim()) ? String(sub.color).trim() : Utils.getRandomVibrantColor()
                 })).filter(s => s.name !== '') : [];
 
                 validNewRoutines.push({
@@ -1063,6 +1080,7 @@ Requirements:
         if (subView) subView.style.display = 'block';
 
         this.renderSubtopicView();
+        if (window.Dashboard) window.Dashboard.render();
     },
 
     closeSubtopicView() {
@@ -1079,6 +1097,8 @@ Requirements:
             addBtn.textContent = '+ ADD ROUTINE';
             addBtn.title = 'Add new routine';
         }
+
+        if (window.Dashboard) window.Dashboard.render();
     },
 
     getCurrentSubtopicRoutine() {
@@ -1100,73 +1120,7 @@ Requirements:
             titleEl.innerHTML = `${Utils.renderEmoji(routine.emoji)} ${Utils.escapeHtml(routine.name).toUpperCase()} <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: normal;">[SUBCATEGORIES VIEW]</span>`;
         }
 
-        // Render Left Sidebar List
-        const sidebarList = document.getElementById('subtopics-sidebar-list');
-        if (sidebarList) {
-            sidebarList.innerHTML = '';
-
-            const subcategories = routine.subcategories || [];
-            if (subcategories.length === 0) {
-                sidebarList.innerHTML = '<div style="font-size: 0.7rem; color: var(--text-muted); font-style: italic; padding: 12px 0;">No subtopics yet. Click "+ SUBTOPIC" to add your first sub routine.</div>';
-            } else {
-                subcategories.forEach((sub, idx) => {
-                    const card = document.createElement('div');
-                    card.className = 'glass-card';
-                    card.style.padding = '8px 10px';
-                    card.style.display = 'flex';
-                    card.style.flexDirection = 'column';
-                    card.style.gap = '4px';
-                    card.style.border = '1px solid var(--border-color)';
-                    card.style.borderRadius = 'var(--radius-sm)';
-                    card.style.background = '#000';
-
-                    let dateBadge = '';
-                    if (sub.startDate || sub.dueDate) {
-                        const sStr = sub.startDate ? sub.startDate : 'Start';
-                        const dStr = sub.dueDate ? sub.dueDate : 'Due';
-                        dateBadge = `<div style="font-size: 0.58rem; color: var(--accent-color); font-family: monospace;">📅 ${sStr} → ${dStr}</div>`;
-                    }
-
-                    card.innerHTML = `
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <div style="display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 0.78rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
-                                <span>${Utils.renderEmoji(sub.emoji || '📌')}</span>
-                                <span title="${Utils.escapeHtml(sub.name)}">${Utils.escapeHtml(sub.name)}</span>
-                            </div>
-                            <div style="display: flex; gap: 4px;">
-                                <button type="button" class="btn btn-secondary btn-retro btn-sm btn-edit-sub" style="padding: 2px 6px; font-size: 0.65rem;" title="Edit Subtopic">✏️</button>
-                                <button type="button" class="btn btn-danger btn-retro btn-sm btn-del-sub" style="padding: 2px 6px; font-size: 0.65rem;" title="Delete Subtopic">&times;</button>
-                            </div>
-                        </div>
-                        ${dateBadge}
-                    `;
-
-                    // Edit button click listener
-                    card.querySelector('.btn-edit-sub').addEventListener('click', () => {
-                        this.openSubtopicModal(sub, routine.id);
-                    });
-
-                    // Delete button click listener
-                    card.querySelector('.btn-del-sub').addEventListener('click', () => {
-                        Utils.confirm("Delete Subtopic", `Are you sure you want to delete "${sub.name}"?`, () => {
-                            routine.subcategories.splice(idx, 1);
-                            const routines = Storage.getRoutines();
-                            const rIdx = routines.findIndex(r => r.id === routine.id);
-                            if (rIdx !== -1) {
-                                routines[rIdx] = routine;
-                                Storage.saveRoutines(routines);
-                            }
-                            this.renderSubtopicView();
-                            window.dispatchEvent(new CustomEvent('habits-changed'));
-                        });
-                    });
-
-                    sidebarList.appendChild(card);
-                });
-            }
-        }
-
-        // Render Right Subtopic Matrix Table
+        // Render Subtopic Matrix Table
         this.renderSubtopicMatrixTable(routine);
     },
 
@@ -1187,7 +1141,7 @@ Requirements:
         const nameHeader = document.getElementById('sub-day-name-header');
         const numHeader = document.getElementById('sub-day-num-header');
 
-        weekHeader.innerHTML = '<th rowspan="3" style="border-bottom: 2px solid var(--border-color); min-width: 150px; text-align: center; font-weight: 800; vertical-align: middle;">SUB ROUTINE</th>';
+        weekHeader.innerHTML = '<th rowspan="3" style="width: 35px; border-bottom: 2px solid var(--border-color);"></th><th rowspan="3" style="border-bottom: 2px solid var(--border-color); min-width: 180px;">SUB ROUTINE</th><th rowspan="3" style="border-bottom: 2px solid var(--border-color); text-align: center; min-width: 110px;">GOAL / DATES</th>';
         nameHeader.innerHTML = '';
         numHeader.innerHTML = '';
 
@@ -1239,8 +1193,8 @@ Requirements:
         if (subcategories.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="${1 + totalDays}" style="text-align: center; color: var(--text-muted); padding: 40px;">
-                        No sub routines added yet. Click "+ SUBTOPIC" to add your first subtopic.
+                    <td colspan="${2 + totalDays}" style="text-align: center; color: var(--text-muted); padding: 48px;">
+                        No sub routines logged. Click "+ ADD SUBTOPIC" to add your first subtopic.
                     </td>
                 </tr>
             `;
@@ -1248,14 +1202,58 @@ Requirements:
         }
 
         const monthStr = String(monthIndex + 1).padStart(2, '0');
+        let needSave = false;
 
-        subcategories.forEach(sub => {
+        subcategories.forEach((sub, idx) => {
+            if (!sub.color) {
+                sub.color = Utils.getRandomVibrantColor();
+                needSave = true;
+            }
+            const subColor = sub.color;
+
             const tr = document.createElement('tr');
             
+            const dragTd = document.createElement('td');
+            dragTd.className = 'drag-grip';
+            dragTd.innerHTML = '⋮⋮';
+            tr.appendChild(dragTd);
+
             const nameTd = document.createElement('td');
             nameTd.className = 'routine-title-cell';
-            nameTd.innerHTML = `<span class="routine-emoji-txt">${Utils.renderEmoji(sub.emoji || '📌')}</span> ${Utils.escapeHtml(sub.name)}`;
+            nameTd.style.cursor = 'pointer';
+            nameTd.title = 'Click to edit subtopic';
+            nameTd.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span class="routine-emoji-txt">${Utils.renderEmoji(sub.emoji || '📌')}</span>
+                    <span style="font-weight: 700;">${Utils.escapeHtml(sub.name)}</span>
+                </div>
+            `;
+
+            nameTd.addEventListener('click', () => {
+                this.openSubtopicModal(sub, routine.id);
+            });
+
             tr.appendChild(nameTd);
+
+            const datesTd = document.createElement('td');
+            datesTd.className = 'goal-val-cell';
+            datesTd.style.fontSize = '0.68rem';
+
+            const subGoal = Utils.calculateSubtopicGoal(sub, year, monthIndex);
+            let dateRangeStr = '';
+            if (sub.startDate || sub.dueDate) {
+                const s = sub.startDate ? sub.startDate.substring(5) : 'Start';
+                const d = sub.dueDate ? sub.dueDate.substring(5) : 'Due';
+                dateRangeStr = `<div style="font-size: 0.58rem; opacity: 0.85; font-family: monospace;">[${s} → ${d}]</div>`;
+            }
+
+            datesTd.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2;">
+                    <span style="font-weight: 800; font-size: 0.78rem; color: ${subColor};">${subGoal} days</span>
+                    ${dateRangeStr}
+                </div>
+            `;
+            tr.appendChild(datesTd);
 
             for (let day = 1; day <= totalDays; day++) {
                 const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
@@ -1271,28 +1269,42 @@ Requirements:
                 if (sub.dueDate && dateStr > sub.dueDate) isActiveRange = false;
 
                 if (!isActiveRange) {
-                    td.style.opacity = '0.15';
+                    td.style.opacity = '0.12';
                     td.innerHTML = '<span style="font-size: 0.6rem; color: var(--text-muted);">-</span>';
                     td.title = `Inactive outside active dates (${sub.startDate || 'Start'} to ${sub.dueDate || 'Due'})`;
                 } else {
+                    // Highlight active date period with translucent subtask color
+                    td.style.background = `${subColor}22`;
+                    td.style.borderTop = `1px solid ${subColor}55`;
+                    td.style.borderBottom = `1px solid ${subColor}55`;
+
                     const isChecked = history[dateStr]?.[sub.id] === true;
-                    const weekIndex = Math.ceil(day / 7);
 
                     const checkbox = document.createElement('div');
                     checkbox.className = 'matrix-checkbox';
+                    checkbox.style.borderColor = subColor;
                     
                     if (isChecked) {
-                        checkbox.classList.add(`checked-w${weekIndex}`);
+                        checkbox.style.background = subColor;
+                        checkbox.style.boxShadow = `0 0 8px ${subColor}`;
                     }
 
                     const isFuture = dateStr > Utils.getTodayStr();
                     if (isFuture) {
-                        checkbox.style.opacity = '0.15';
+                        checkbox.style.opacity = '0.2';
                         checkbox.style.cursor = 'not-allowed';
                     } else {
                         checkbox.addEventListener('click', (e) => {
                             e.stopPropagation();
-                            this.toggleCheckbox(checkbox, dateStr, sub.id, weekIndex);
+                            const isNowChecked = Storage.toggleRoutineCheck(dateStr, sub.id);
+                            if (isNowChecked) {
+                                checkbox.style.background = subColor;
+                                checkbox.style.boxShadow = `0 0 8px ${subColor}`;
+                            } else {
+                                checkbox.style.background = '';
+                                checkbox.style.boxShadow = '';
+                            }
+                            window.dispatchEvent(new CustomEvent('habits-changed'));
                         });
                     }
 
@@ -1304,6 +1316,15 @@ Requirements:
 
             tbody.appendChild(tr);
         });
+
+        if (needSave) {
+            const routines = Storage.getRoutines();
+            const rIdx = routines.findIndex(r => r.id === routine.id);
+            if (rIdx !== -1) {
+                routines[rIdx] = routine;
+                Storage.saveRoutines(routines);
+            }
+        }
     },
 
     openSubtopicModal(subtopic = null, parentRoutineId) {
@@ -1313,6 +1334,10 @@ Requirements:
         
         form.reset();
         document.getElementById('subtopic-parent-id').value = parentRoutineId;
+
+        const colorInput = document.getElementById('subtopic-color');
+        const defaultColor = subtopic?.color || Utils.getRandomVibrantColor();
+        if (colorInput) colorInput.value = defaultColor;
 
         if (subtopic) {
             titleEl.textContent = "EDIT SUB ROUTINE";
@@ -1348,6 +1373,8 @@ Requirements:
         const emoji = document.getElementById('subtopic-emoji').value.trim() || '📌';
         const startDate = document.getElementById('subtopic-start-date').value || null;
         const dueDate = document.getElementById('subtopic-due-date').value || null;
+        const colorInput = document.getElementById('subtopic-color');
+        const color = colorInput ? colorInput.value : Utils.getRandomVibrantColor();
 
         if (!parentId || !name) return;
 
@@ -1365,6 +1392,7 @@ Requirements:
                 sub.emoji = emoji;
                 sub.startDate = startDate;
                 sub.dueDate = dueDate;
+                sub.color = color;
             }
             Utils.showToast("Sub routine updated!", "success");
         } else {
@@ -1374,7 +1402,8 @@ Requirements:
                 name,
                 emoji,
                 startDate,
-                dueDate
+                dueDate,
+                color
             });
             Utils.showToast("Sub routine added!", "success");
         }

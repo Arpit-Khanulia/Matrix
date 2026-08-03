@@ -45,7 +45,7 @@
             <div class="dashboard-row top-row">
                 <!-- Card 1: Monthly Summary -->
                 <section class="retro-card glass-card card-overview">
-                    <h2 class="card-title">MONTHLY OVERVIEW</h2>
+                    <h2 class="card-title" id="card-title-overview">MONTHLY OVERVIEW</h2>
                     <div class="overview-stats-container">
                         <div class="stat-large">
                             <span class="stat-number" id="overview-rate">0%</span>
@@ -103,16 +103,17 @@
                 </div>
             </section>
 
-            <!-- Subtopic Dedicated View Container (Hidden by default, shown when viewing subtopics of a routine) -->
-            <section class="retro-card glass-card card-matrix" id="subtopics-detail-view" style="display: none; padding: 16px;">
-                <div class="matrix-card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); margin-bottom: 16px; flex-wrap: wrap; gap: 12px; background: rgba(0,0,0,0.5);">
+            <!-- Subtopic Dedicated View Container -->
+            <section class="retro-card glass-card card-matrix" id="subtopics-detail-view" style="display: none;">
+                <div class="matrix-card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 8px;">
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <button class="btn btn-secondary btn-retro btn-sm" id="btn-subtopics-back">← ALL ROUTINES</button>
                         <h2 class="card-title" id="subtopic-routine-title" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none; font-size: 1.05rem; color: var(--accent-color);">
                             STUDY 📖 SUBCATEGORIES
                         </h2>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button class="btn btn-primary btn-retro btn-sm" id="btn-add-subtopic-header">+ ADD SUBTOPIC</button>
                         <button class="btn btn-secondary btn-retro btn-sm" id="btn-edit-current-routine" title="Edit Group Config">⚙️ EDIT GROUP</button>
                         <div class="month-selector" style="display: flex; align-items: center; gap: 8px;">
                             <button class="btn btn-secondary btn-sm btn-retro" id="btn-sub-prev-month">◀ PREV</button>
@@ -122,32 +123,17 @@
                     </div>
                 </div>
 
-                <!-- Centered Split View Container -->
-                <div style="display: flex; flex-direction: row; min-height: 380px; gap: 16px; justify-content: center; align-items: stretch; flex-wrap: wrap;">
-                    <!-- Left Sidebar: Subtopics List with Edit & Delete icons -->
-                    <div style="width: 280px; min-width: 260px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 14px; background: rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px;">
-                            <span style="font-size: 0.75rem; font-weight: bold; color: var(--text-secondary); letter-spacing: 0.5px;">SUBTOPICS LIST</span>
-                            <button class="btn btn-primary btn-retro btn-sm" id="btn-add-subtopic-sidebar" style="font-size: 0.65rem; padding: 4px 8px;">+ SUBTOPIC</button>
-                        </div>
-                        <div id="subtopics-sidebar-list" style="display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1;">
-                            <!-- List populated dynamically by JS -->
-                        </div>
-                    </div>
-
-                    <!-- Right Matrix Calendar Grid Container -->
-                    <div class="matrix-table-container" style="flex: 1; min-width: 600px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: rgba(0,0,0,0.3); overflow-x: auto;">
-                        <table class="matrix-table" id="subtopic-matrix-table">
-                            <thead>
-                                <tr id="sub-week-header"></tr>
-                                <tr id="sub-day-name-header"></tr>
-                                <tr id="sub-day-num-header"></tr>
-                            </thead>
-                            <tbody id="sub-matrix-body">
-                                <!-- Subtopics calendar rows generated dynamically by JS -->
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="matrix-table-container">
+                    <table class="matrix-table" id="subtopic-matrix-table">
+                        <thead>
+                            <tr id="sub-week-header"></tr>
+                            <tr id="sub-day-name-header"></tr>
+                            <tr id="sub-day-num-header"></tr>
+                        </thead>
+                        <tbody id="sub-matrix-body">
+                            <!-- Subtopics calendar rows generated dynamically by JS -->
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
@@ -155,7 +141,7 @@
             <div class="dashboard-row bottom-row">
                 <!-- Card 4: Analysis Counts -->
                 <section class="retro-card glass-card card-analysis">
-                    <h2 class="card-title">OVERVIEW / ANALYSIS</h2>
+                    <h2 class="card-title" id="card-title-analysis">OVERVIEW / ANALYSIS</h2>
                     <div class="analysis-stats">
                         <div class="analysis-item">
                             <span class="an-lbl color-week-2">DONE</span>
@@ -174,7 +160,7 @@
 
                 <!-- Card 5: Streaks & Badges -->
                 <section class="retro-card glass-card card-streaks">
-                    <h2 class="card-title">ROUTINE PERFORMANCE</h2>
+                    <h2 class="card-title" id="card-title-performance">ROUTINE PERFORMANCE</h2>
                     <div class="streaks-summary-list" id="streaks-list-container">
                         <!-- Loaded dynamically by JS -->
                     </div>
@@ -420,6 +406,14 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label for="subtopic-color">GRID HIGHLIGHT COLOR</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="color" id="subtopic-color" value="#00f0ff" style="width: 45px; height: 32px; background: #000; border: 1px solid var(--border-color); cursor: pointer; border-radius: var(--radius-sm); padding: 2px;">
+                        <span style="font-size: 0.68rem; color: var(--text-secondary);">Highlights period & checkboxes on the calendar grid</span>
+                    </div>
+                </div>
+
                 <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 12px; font-style: italic;">
                     * The sub routine will only appear active on the calendar grid between the Start Date and Due Date.
                 </div>
@@ -448,7 +442,7 @@
                 </p>
                 <div class="form-group" style="margin: 0;">
                     <label for="json-import-input">PASTE JSON CODE HERE</label>
-                    <textarea id="json-import-input" rows="7" class="text-input" placeholder='[&#10;  {&#10;    "name": "Study",&#10;    "emoji": "📖",&#10;    "goal": 30,&#10;    "subcategories": [&#10;      { "name": "Networking", "emoji": "🌐", "startDate": "2026-08-01", "dueDate": "2026-08-15" },&#10;      { "name": "DSA", "emoji": "💻", "startDate": "2026-08-05", "dueDate": "2026-08-31" }&#10;    ]&#10;  }&#10;]' style="width: 100%; font-family: monospace; font-size: 0.75rem; resize: vertical; box-sizing: border-box;"></textarea>
+                    <textarea id="json-import-input" rows="7" class="text-input" placeholder='[&#10;  {&#10;    "name": "Study",&#10;    "emoji": "📖",&#10;    "goal": 30,&#10;    "subcategories": [&#10;      { "name": "Networking", "emoji": "🌐", "startDate": "2026-08-01", "dueDate": "2026-08-15", "color": "#00f0ff" },&#10;      { "name": "DSA", "emoji": "💻", "startDate": "2026-08-05", "dueDate": "2026-08-31", "color": "#ff007f" }&#10;    ]&#10;  }&#10;]' style="width: 100%; font-family: monospace; font-size: 0.75rem; resize: vertical; box-sizing: border-box;"></textarea>
                 </div>
                 
                 <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.4); padding: 8px 12px; border: 1px dashed var(--border-color); border-radius: var(--radius-sm);">
@@ -459,9 +453,9 @@
                 </div>
 
                 <div style="font-size: 0.68rem; color: var(--text-muted); line-height: 1.3; background: #000; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-                    <strong>Expected Format (With Subcategories):</strong><br>
-                    <code>[ { "name": "Study", "emoji": "📖", "goal": 30, "subcategories": [ { "name": "Networking", "emoji": "🌐", "startDate": "2026-08-01", "dueDate": "2026-08-15" } ] } ]</code><br>
-                    <em>Fields: <code>name</code> (required), <code>emoji</code>, <code>goal</code>, <code>subcategories</code> (array with name, emoji, startDate, dueDate).</em>
+                    <strong>Expected Format (With Subcategories & Dates/Colors):</strong><br>
+                    <code>[ { "name": "Study", "emoji": "📖", "goal": 30, "subcategories": [ { "name": "Networking", "emoji": "🌐", "startDate": "2026-08-01", "dueDate": "2026-08-15", "color": "#00f0ff" } ] } ]</code><br>
+                    <em>Fields: <code>name</code> (required), <code>emoji</code>, <code>goal</code>, <code>subcategories</code> (array with name, emoji, startDate, dueDate, color).</em>
                 </div>
             </div>
             <div class="modal-footer" style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">

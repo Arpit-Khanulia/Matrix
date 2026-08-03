@@ -118,6 +118,47 @@ const Utils = {
             .replace(/'/g, '&#039;');
     },
 
+    /**
+     * Get a random vibrant retro theme color for subtopics/habits
+     */
+    getRandomVibrantColor() {
+        const colors = [
+            '#00f0ff', // Cyber Cyan
+            '#ff007f', // Neon Pink
+            '#00ff66', // Matrix Green
+            '#ffb700', // Amber Yellow
+            '#9d00ff', // Electric Purple
+            '#0077ff', // Deep Blue
+            '#ff4500', // Neon Orange
+            '#7000ff'  // Violet
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
+    },
+
+    /**
+     * Calculate goal (active days count) for a subtopic based on its Start Date and Due Date for a given month
+     */
+    calculateSubtopicGoal(sub, year, monthIndex) {
+        if (!sub) return 0;
+        const totalDaysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+        if (!sub.startDate && !sub.dueDate) {
+            return totalDaysInMonth;
+        }
+
+        const monthStr = String(monthIndex + 1).padStart(2, '0');
+        let count = 0;
+
+        for (let day = 1; day <= totalDaysInMonth; day++) {
+            const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
+            let isActive = true;
+            if (sub.startDate && dateStr < sub.startDate) isActive = false;
+            if (sub.dueDate && dateStr > sub.dueDate) isActive = false;
+            if (isActive) count++;
+        }
+
+        return count;
+    },
+
     // -------------------------------------------------------------
     // Gamification (XP & Leveling)
     // -------------------------------------------------------------
