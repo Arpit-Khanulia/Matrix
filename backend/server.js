@@ -55,11 +55,51 @@ app.use(express.json());
 app.use(cookieParser());
 
 // -------------------------------------------------------------
-// MongoDB Atlas Connection
+// MongoDB Atlas Connection (Vercel Serverless Caching Pattern)
 // -------------------------------------------------------------
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log("Connected to MongoDB Atlas successfully."))
-    .catch(err => console.error("MongoDB Atlas connection error:", err));
+let cachedDb = global.mongoose;
+if (!cachedDb) {
+    cachedDb = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectToDatabase() {
+    if (cachedDb.conn) {
+        return cachedDb.conn;
+    }
+
+    if (!cachedDb.promise) {
+        const opts = {
+            bufferCommands: false,
+            serverSelectionTimeoutMS: 5000,
+        };
+
+        cachedDb.promise = mongoose.connect(process.env.MONGODB_URI, opts).then((mongooseInstance) => {
+            console.log("Connected to MongoDB Atlas successfully.");
+            return mongooseInstance;
+        });
+    }
+
+    try {
+        cachedDb.conn = await cachedDb.promise;
+    } catch (e) {
+        cachedDb.promise = null;
+        throw e;
+    }
+
+    return cachedDb.conn;
+}
+
+// Database Connection Middleware for Serverless Routes
+app.use(async (req, res, next) => {
+    if (req.method === 'OPTIONS') return next();
+    try {
+        await connectToDatabase();
+        next();
+    } catch (err) {
+        console.error("MongoDB Serverless Connection Error:", err.message);
+        res.status(500).json({ error: "Database connection failed. Please check MONGODB_URI in Vercel environment variables." });
+    }
+});
 
 // -------------------------------------------------------------
 // Mongoose Models
