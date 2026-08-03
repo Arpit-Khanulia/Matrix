@@ -40,6 +40,9 @@ const Habits = {
 
         const copyPromptBtn = document.getElementById('btn-copy-llm-prompt');
         if (copyPromptBtn) copyPromptBtn.addEventListener('click', () => this.copyLlmPrompt());
+
+        const addSubBtn = document.getElementById('btn-add-subtopic');
+        if (addSubBtn) addSubBtn.addEventListener('click', () => this.handleAddSubtopic());
     },
 
     initEmojiPicker() {
@@ -298,6 +301,8 @@ const Habits = {
             return;
         }
 
+        this.expandedRoutines = this.expandedRoutines || new Set();
+
         routines.forEach((routine, idx) => {
             const tr = document.createElement('tr');
             tr.dataset.routineId = routine.id;
@@ -311,11 +316,43 @@ const Habits = {
             dragTd.className = 'drag-grip';
             dragTd.innerHTML = '⋮⋮';
 
+            // Check if subcategories exist
+            const hasSubcategories = routine.subcategories && Array.isArray(routine.subcategories) && routine.subcategories.length > 0;
+            const isExpanded = hasSubcategories && this.expandedRoutines.has(routine.id);
+
             // Routine name cell
             const nameTd = document.createElement('td');
             nameTd.className = 'routine-title-cell';
-            nameTd.innerHTML = `<span class="routine-emoji-txt">${Utils.renderEmoji(routine.emoji)}</span> ${routine.name}`;
-            nameTd.addEventListener('click', () => this.openRoutineModal(routine));
+            
+            let toggleHtml = '';
+            if (hasSubcategories) {
+                const subCount = routine.subcategories.length;
+                toggleHtml = `<button type="button" class="btn-toggle-sub" style="background: none; border: none; color: var(--accent-color); cursor: pointer; padding: 0 4px 0 0; font-size: 0.7rem; font-weight: bold;" title="Expand/Collapse Subtopics">${isExpanded ? '▼' : '▶'}</button><span style="font-size: 0.65rem; color: var(--accent-color); margin-right: 4px;">(${subCount})</span>`;
+            }
+
+            nameTd.innerHTML = `${toggleHtml}<span class="routine-emoji-txt">${Utils.renderEmoji(routine.emoji)}</span> <span class="routine-name-lbl" style="cursor: pointer;">${Utils.escapeHtml(routine.name)}</span>`;
+
+            if (hasSubcategories) {
+                const toggleBtn = nameTd.querySelector('.btn-toggle-sub');
+                if (toggleBtn) {
+                    toggleBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (this.expandedRoutines.has(routine.id)) {
+                            this.expandedRoutines.delete(routine.id);
+                        } else {
+                            this.expandedRoutines.add(routine.id);
+                        }
+                        this.renderMatrix();
+                    });
+                }
+            }
+
+            const nameLbl = nameTd.querySelector('.routine-name-lbl');
+            if (nameLbl) {
+                nameLbl.addEventListener('click', () => this.openRoutineModal(routine));
+            } else {
+                nameTd.addEventListener('click', () => this.openRoutineModal(routine));
+            }
 
             // Goal target cell
             const goalTd = document.createElement('td');
@@ -369,6 +406,92 @@ const Habits = {
             }
 
             tbody.appendChild(tr);
+
+            // -------------------------------------------------------------
+            // Render Child Subcategory Rows if Expanded
+            // -------------------------------------------------------------
+            if (isExpanded) {
+                routine.subcategories.forEach(sub => {
+                    const subTr = document.createElement('tr');
+                    subTr.className = 'subcategory-row';
+                    subTr.style.background = 'rgba(0, 0, 0, 0.45)';
+
+                    const subDragTd = document.createElement('td');
+                    subDragTd.innerHTML = '';
+
+                    const subNameTd = document.createElement('td');
+                    subNameTd.className = 'routine-title-cell';
+                    subNameTd.style.paddingLeft = '22px';
+                    subNameTd.style.fontSize = '0.7rem';
+                    subNameTd.style.color = 'var(--text-secondary)';
+
+                    let subDateTag = '';
+                    if (sub.startDate || sub.dueDate) {
+                        const sTag = sub.startDate ? sub.startDate.substring(5) : 'Start';
+                        const dTag = sub.dueDate ? sub.dueDate.substring(5) : 'Due';
+                        subDateTag = ` <span style="font-size: 0.58rem; color: var(--accent-color); font-family: monospace;">[${sTag} → ${dTag}]</span>`;
+                    }
+
+                    subNameTd.innerHTML = `<span style="color: var(--accent-color); opacity: 0.7;">↳</span> <span class="routine-emoji-txt">${Utils.renderEmoji(sub.emoji || '📌')}</span> ${Utils.escapeHtml(sub.name)}${subDateTag}`;
+                    
+                    const subGoalTd = document.createElement('td');
+                    subGoalTd.className = 'goal-val-cell';
+                    subGoalTd.style.fontSize = '0.65rem';
+                    subGoalTd.style.color = 'var(--text-muted)';
+                    subGoalTd.textContent = '-';
+
+                    subTr.appendChild(subDragTd);
+                    subTr.appendChild(subNameTd);
+                    subTr.appendChild(subGoalTd);
+
+                    for (let day = 1; day <= totalDays; day++) {
+                        const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
+                        const subTd = document.createElement('td');
+                        subTd.className = 'matrix-chk-cell';
+                        if (day === todayDayNum && year === actualYear && monthIndex === actualMonth) {
+                            subTd.className += ' today';
+                        }
+
+                        // Check date range active state
+                        let isActiveRange = true;
+                        if (sub.startDate && dateStr < sub.startDate) isActiveRange = false;
+                        if (sub.dueDate && dateStr > sub.dueDate) isActiveRange = false;
+
+                        if (!isActiveRange) {
+                            subTd.style.opacity = '0.2';
+                            subTd.innerHTML = '<span style="font-size: 0.6rem; color: var(--text-muted);">-</span>';
+                            subTd.title = `Subtopic inactive (${sub.startDate || 'Any'} to ${sub.dueDate || 'Any'})`;
+                        } else {
+                            const isSubChecked = history[dateStr]?.[sub.id] === true;
+                            const weekIndex = Math.ceil(day / 7);
+                            const checkbox = document.createElement('div');
+                            checkbox.className = 'matrix-checkbox';
+                            checkbox.style.width = '13px';
+                            checkbox.style.height = '13px';
+
+                            if (isSubChecked) {
+                                checkbox.classList.add(`checked-w${weekIndex}`);
+                            }
+
+                            const isFuture = dateStr > Utils.getTodayStr();
+                            if (isFuture) {
+                                checkbox.style.opacity = '0.15';
+                                checkbox.style.cursor = 'not-allowed';
+                            } else {
+                                checkbox.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    this.toggleCheckbox(checkbox, dateStr, sub.id, weekIndex);
+                                });
+                            }
+                            subTd.appendChild(checkbox);
+                        }
+
+                        subTr.appendChild(subTd);
+                    }
+
+                    tbody.appendChild(subTr);
+                });
+            }
         });
     },
 
@@ -434,12 +557,16 @@ const Habits = {
     // -------------------------------------------------------------
     // Routine Forms CRUD Modals
     // -------------------------------------------------------------
+    // -------------------------------------------------------------
+    // Routine Forms CRUD Modals & Subtopics Management
+    // -------------------------------------------------------------
     openRoutineModal(routine = null) {
         const modal = document.getElementById('routine-modal');
         const form = document.getElementById('routine-form');
         const titleEl = document.getElementById('routine-modal-title');
         
         form.reset();
+        this.tempSubcategories = routine && Array.isArray(routine.subcategories) ? JSON.parse(JSON.stringify(routine.subcategories)) : [];
 
         if (routine) {
             titleEl.textContent = "EDIT ROUTINE";
@@ -458,7 +585,99 @@ const Habits = {
             document.getElementById('btn-delete-routine').style.display = 'none';
         }
 
+        // Clear subtopic input fields
+        const newSubName = document.getElementById('new-sub-name');
+        const newSubEmoji = document.getElementById('new-sub-emoji');
+        const newSubStart = document.getElementById('new-sub-start-date');
+        const newSubDue = document.getElementById('new-sub-due-date');
+        if (newSubName) newSubName.value = '';
+        if (newSubEmoji) newSubEmoji.value = '';
+        if (newSubStart) newSubStart.value = '';
+        if (newSubDue) newSubDue.value = '';
+
+        this.renderSubcategoriesList();
         modal.classList.add('show');
+    },
+
+    renderSubcategoriesList() {
+        const listContainer = document.getElementById('routine-subcategories-list');
+        if (!listContainer) return;
+        listContainer.innerHTML = '';
+
+        if (!this.tempSubcategories || this.tempSubcategories.length === 0) {
+            listContainer.innerHTML = '<div style="font-size: 0.68rem; color: var(--text-muted); font-style: italic;">No subtopics added yet.</div>';
+            return;
+        }
+
+        this.tempSubcategories.forEach((sub, index) => {
+            const item = document.createElement('div');
+            item.className = 'glass-card';
+            item.style.padding = '5px 8px';
+            item.style.display = 'flex';
+            item.style.alignItems = 'center';
+            item.style.justifyContent = 'space-between';
+            item.style.fontSize = '0.72rem';
+            item.style.border = '1px solid var(--border-color)';
+            item.style.borderRadius = 'var(--radius-sm)';
+            item.style.background = '#000';
+
+            let dateStr = '';
+            if (sub.startDate || sub.dueDate) {
+                const s = sub.startDate ? sub.startDate : 'Any';
+                const d = sub.dueDate ? sub.dueDate : 'No due date';
+                dateStr = ` <span style="font-size: 0.6rem; color: var(--accent-color); font-family: monospace;">[${s} → ${d}]</span>`;
+            }
+
+            item.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
+                    <span>${sub.emoji || '📌'}</span>
+                    <span style="font-weight: bold;">${Utils.escapeHtml(sub.name)}</span>
+                    ${dateStr}
+                </div>
+                <button type="button" class="btn btn-danger btn-retro btn-sm" style="padding: 1px 6px; font-size: 0.65rem;" title="Remove Subtopic">&times;</button>
+            `;
+
+            item.querySelector('button').addEventListener('click', () => {
+                this.tempSubcategories.splice(index, 1);
+                this.renderSubcategoriesList();
+            });
+
+            listContainer.appendChild(item);
+        });
+    },
+
+    handleAddSubtopic() {
+        const nameInput = document.getElementById('new-sub-name');
+        const emojiInput = document.getElementById('new-sub-emoji');
+        const startDateInput = document.getElementById('new-sub-start-date');
+        const dueDateInput = document.getElementById('new-sub-due-date');
+
+        if (!nameInput) return;
+        const name = nameInput.value.trim();
+        if (!name) {
+            Utils.showToast("Subtopic name is required.", "warning");
+            return;
+        }
+
+        const emoji = emojiInput.value.trim() || '📌';
+        const startDate = startDateInput.value || null;
+        const dueDate = dueDateInput.value || null;
+
+        this.tempSubcategories = this.tempSubcategories || [];
+        this.tempSubcategories.push({
+            id: 'sub-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+            name,
+            emoji,
+            startDate,
+            dueDate
+        });
+
+        nameInput.value = '';
+        emojiInput.value = '';
+        startDateInput.value = '';
+        dueDateInput.value = '';
+
+        this.renderSubcategoriesList();
     },
 
     closeRoutineModal() {
@@ -474,6 +693,7 @@ const Habits = {
         const goal = parseInt(document.getElementById('routine-goal-target').value, 10) || 30;
 
         const routines = Storage.getRoutines();
+        const subcategories = this.tempSubcategories || [];
 
         if (id) {
             // Edit
@@ -481,6 +701,7 @@ const Habits = {
             r.name = name;
             r.emoji = emoji;
             r.goal = goal;
+            r.subcategories = subcategories;
             Utils.showToast("Routine configuration saved!", "success");
         } else {
             // Create
@@ -490,7 +711,8 @@ const Habits = {
                 name,
                 emoji,
                 goal,
-                order: nextOrder
+                order: nextOrder,
+                subcategories
             };
             routines.push(newRoutine);
             Utils.showToast("Routine added! +15 XP", "success");
@@ -549,23 +771,49 @@ const Habits = {
     },
 
     copyLlmPrompt() {
-        const promptText = `Act as a personal productivity and habit coach. Generate a JSON list of 5 to 10 daily habits/routines for my goals.
+        const promptText = `Act as a personal productivity and habit coach. Generate a JSON list of 5 to 8 daily habits/routines for my goal: [INSERT YOUR GOAL HERE, e.g. Study, Fitness, Software Engineering].
 
 Return ONLY a valid raw JSON array of objects with no markdown formatting or extra text outside the JSON array.
+
+Each object can have main topics (like Study, Gym) and optional subcategories (like Networking, DSA under Study). You can specify optional "startDate" and "dueDate" (in YYYY-MM-DD format) for subcategories.
 
 Each object must follow this exact schema:
 [
   {
-    "name": "Habit Name Here",
-    "emoji": "⚡",
-    "goal": 30
+    "name": "Study",
+    "emoji": "📖",
+    "goal": 30,
+    "subcategories": [
+      {
+        "name": "Networking",
+        "emoji": "🌐",
+        "startDate": "2026-08-01",
+        "dueDate": "2026-08-15"
+      },
+      {
+        "name": "Data Structures & Algorithms",
+        "emoji": "💻",
+        "startDate": "2026-08-05",
+        "dueDate": "2026-08-31"
+      }
+    ]
+  },
+  {
+    "name": "Gym & Fitness",
+    "emoji": "🏋️‍♂️",
+    "goal": 30,
+    "subcategories": [
+      { "name": "Leg Day Routine", "emoji": "🦵" },
+      { "name": "Push Ups & Core", "emoji": "💪" }
+    ]
   }
 ]
 
 Requirements:
-- "name": Concise name of the habit (e.g., "LeetCode Problem", "Deep Work 2hrs", "Drink 3L Water").
-- "emoji": A single matching emoji for the habit (e.g. 💻, 🎯, 💧, 📖, 🧘‍♂️).
-- "goal": Target goal in days (integer, default 30).`;
+- "name": Concise name of the habit or subtopic.
+- "emoji": A single matching emoji for the habit or subtopic.
+- "goal": Integer representing target days (default 30).
+- "subcategories": Optional array of subtopics, with optional "startDate" (YYYY-MM-DD) and "dueDate" (YYYY-MM-DD).`;
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(promptText).then(() => {
@@ -631,12 +879,22 @@ Requirements:
 
         routinesToProcess.forEach((item, idx) => {
             if (item && typeof item === 'object' && item.name && String(item.name).trim() !== '') {
+                const subList = item.subcategories || item.subtopics || item.sub_categories || [];
+                const parsedSubcategories = Array.isArray(subList) ? subList.map((sub, sIdx) => ({
+                    id: 'sub-' + Date.now() + '-' + idx + '-' + sIdx,
+                    name: String(sub.name || 'Subtopic').trim(),
+                    emoji: (sub.emoji && String(sub.emoji).trim()) ? String(sub.emoji).trim() : '📌',
+                    startDate: sub.startDate || sub.start_date || null,
+                    dueDate: sub.dueDate || sub.due_date || null
+                })).filter(s => s.name !== '') : [];
+
                 validNewRoutines.push({
                     id: 'routine-' + Date.now() + '-' + idx,
                     name: String(item.name).trim(),
                     emoji: (item.emoji && String(item.emoji).trim()) ? String(item.emoji).trim() : '⚡',
                     goal: parseInt(item.goal, 10) || 30,
-                    order: baseIndex + idx
+                    order: baseIndex + idx,
+                    subcategories: parsedSubcategories
                 });
             }
         });
