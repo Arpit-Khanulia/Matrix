@@ -420,11 +420,6 @@ const Habits = {
             // Routine name cell
             const nameTd = document.createElement('td');
             nameTd.className = 'routine-title-cell';
-            
-            let toggleHtml = '';
-            if (hasSubcategories) {
-                toggleHtml = `<button type="button" class="btn-toggle-sub" style="background: none; border: none; color: var(--accent-color); cursor: pointer; padding: 0 4px 0 0; font-size: 0.7rem; font-weight: bold;" title="Expand/Collapse Subtopics">${isExpanded ? '▼' : '▶'}</button>`;
-            }
 
             let subtopicsBtnHtml = '';
             if (hasSubcategories) {
@@ -435,8 +430,7 @@ const Habits = {
 
             nameTd.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                        ${toggleHtml}
+                    <div style="display: flex; align-items: center; gap: 6px;">
                         <span class="routine-emoji-txt">${Utils.renderEmoji(routine.emoji)}</span>
                         <span class="routine-name-lbl" style="cursor: pointer; font-weight: 700;" title="Click to Edit Routine">${Utils.escapeHtml(routine.name)}</span>
                     </div>
@@ -445,21 +439,6 @@ const Habits = {
                     </div>
                 </div>
             `;
-
-            if (hasSubcategories) {
-                const toggleBtn = nameTd.querySelector('.btn-toggle-sub');
-                if (toggleBtn) {
-                    toggleBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        if (this.expandedRoutines.has(routine.id)) {
-                            this.expandedRoutines.delete(routine.id);
-                        } else {
-                            this.expandedRoutines.add(routine.id);
-                        }
-                        this.renderMatrix();
-                    });
-                }
-            }
 
             const subViewBtn = nameTd.querySelector('.btn-open-sub-view');
             if (subViewBtn) {
@@ -528,106 +507,6 @@ const Habits = {
             }
 
             tbody.appendChild(tr);
-
-            // -------------------------------------------------------------
-            // Render Child Subcategory Rows if Expanded
-            // -------------------------------------------------------------
-            if (isExpanded) {
-                routine.subcategories.forEach(sub => {
-                    const subColor = sub.color || Utils.getRandomVibrantColor();
-                    sub.color = subColor;
-
-                    const subTr = document.createElement('tr');
-                    subTr.className = 'subcategory-row';
-                    subTr.style.background = 'rgba(0, 0, 0, 0.45)';
-
-                    const subDragTd = document.createElement('td');
-                    subDragTd.innerHTML = '';
-
-                    const subNameTd = document.createElement('td');
-                    subNameTd.className = 'routine-title-cell';
-                    subNameTd.style.paddingLeft = '22px';
-                    subNameTd.style.cursor = 'pointer';
-                    subNameTd.title = 'Click to edit subtopic';
-                    subNameTd.innerHTML = `<span style="color: ${subColor}; font-weight: bold;">↳</span> <span class="routine-emoji-txt">${Utils.renderEmoji(sub.emoji || '📌')}</span> ${Utils.escapeHtml(sub.name)}${subDateTag}`;
-                    
-                    subNameTd.addEventListener('click', () => {
-                        this.openSubtopicModal(sub, routine.id);
-                    });
-                    
-                    const subGoal = Utils.calculateSubtopicGoal(sub, year, monthIndex);
-                    const subGoalTd = document.createElement('td');
-                    subGoalTd.className = 'goal-val-cell';
-                    subGoalTd.style.fontSize = '0.68rem';
-                    subGoalTd.style.color = subColor;
-                    subGoalTd.style.fontWeight = 'bold';
-                    subGoalTd.textContent = subGoal;
-
-                    subTr.appendChild(subDragTd);
-                    subTr.appendChild(subNameTd);
-                    subTr.appendChild(subGoalTd);
-
-                    for (let day = 1; day <= totalDays; day++) {
-                        const dateStr = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
-                        const subTd = document.createElement('td');
-                        subTd.className = 'matrix-chk-cell';
-                        if (day === todayDayNum && year === actualYear && monthIndex === actualMonth) {
-                            subTd.className += ' today';
-                        }
-
-                        // Check date range active state
-                        let isActiveRange = true;
-                        if (sub.startDate && dateStr < sub.startDate) isActiveRange = false;
-                        if (sub.dueDate && dateStr > sub.dueDate) isActiveRange = false;
-
-                        if (!isActiveRange) {
-                            subTd.style.opacity = '0.12';
-                            subTd.innerHTML = '<span style="font-size: 0.6rem; color: var(--text-muted);">-</span>';
-                            subTd.title = `Subtopic inactive (${sub.startDate || 'Any'} to ${sub.dueDate || 'Any'})`;
-                        } else {
-                            subTd.style.background = `${subColor}22`;
-                            subTd.style.borderTop = `1px solid ${subColor}55`;
-                            subTd.style.borderBottom = `1px solid ${subColor}55`;
-
-                            const isSubChecked = history[dateStr]?.[sub.id] === true;
-                            const checkbox = document.createElement('div');
-                            checkbox.className = 'matrix-checkbox';
-                            checkbox.style.width = '13px';
-                            checkbox.style.height = '13px';
-                            checkbox.style.borderColor = subColor;
-
-                            if (isSubChecked) {
-                                checkbox.style.background = subColor;
-                                checkbox.style.boxShadow = `0 0 8px ${subColor}`;
-                            }
-
-                            const isFuture = dateStr > Utils.getTodayStr();
-                            if (isFuture) {
-                                checkbox.style.opacity = '0.2';
-                                checkbox.style.cursor = 'not-allowed';
-                            } else {
-                                checkbox.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    const isNowChecked = Storage.toggleRoutineCheck(dateStr, sub.id);
-                                    if (isNowChecked) {
-                                        checkbox.style.background = subColor;
-                                        checkbox.style.boxShadow = `0 0 8px ${subColor}`;
-                                    } else {
-                                        checkbox.style.background = '';
-                                        checkbox.style.boxShadow = '';
-                                    }
-                                    window.dispatchEvent(new CustomEvent('habits-changed'));
-                                });
-                            }
-                            subTd.appendChild(checkbox);
-                        }
-
-                        subTr.appendChild(subTd);
-                    }
-
-                    tbody.appendChild(subTr);
-                });
-            }
         });
     },
 
