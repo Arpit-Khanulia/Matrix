@@ -36,11 +36,7 @@ const Habits = {
     bindEvents() {
         // Modal buttons
         document.getElementById('btn-add-routine').addEventListener('click', () => {
-            if (this.currentSubtopicRoutineId) {
-                this.openSubtopicModal(null, this.currentSubtopicRoutineId);
-            } else {
-                this.openRoutineModal();
-            }
+            this.openRoutineModal();
         });
 
         document.getElementById('btn-close-routine').addEventListener('click', () => this.closeRoutineModal());
@@ -75,7 +71,7 @@ const Habits = {
         if (addSubBtn) addSubBtn.addEventListener('click', () => this.handleAddSubtopic());
 
         // Subtopic Dedicated View & Modal events
-        const backBtn = document.getElementById('btn-back-to-matrix');
+        const backBtn = document.getElementById('btn-subtopics-back');
         if (backBtn) backBtn.addEventListener('click', () => this.closeSubtopicView());
 
         const editCurrentGroupBtn = document.getElementById('btn-edit-current-routine');
@@ -299,6 +295,23 @@ const Habits = {
     },
 
     renderMatrix() {
+        const mainView = document.getElementById('main-routines-view');
+        const subView = document.getElementById('subtopics-detail-view');
+
+        if (this.currentSubtopicRoutineId) {
+            this.renderSubtopicView();
+            return;
+        }
+
+        if (mainView) mainView.style.display = 'block';
+        if (subView) subView.style.display = 'none';
+
+        const addBtn = document.getElementById('btn-add-routine');
+        if (addBtn) {
+            addBtn.textContent = '+ ADD ROUTINE';
+            addBtn.title = 'Add new routine';
+        }
+
         const routines = Storage.getRoutines();
         const history = Storage.getHistory();
         
@@ -415,12 +428,23 @@ const Habits = {
 
             let subtopicsBtnHtml = '';
             if (hasSubcategories) {
-                subtopicsBtnHtml = ` <button type="button" class="btn-open-sub-view" style="background: rgba(0,0,0,0.6); border: 1px solid var(--border-color); color: var(--accent-color); cursor: pointer; padding: 1px 5px; font-size: 0.6rem; border-radius: var(--radius-sm);" title="Open Subtopics Calendar View">SUBTOPICS (${routine.subcategories.length}) 📂</button>`;
+                subtopicsBtnHtml = `<button type="button" class="btn-open-sub-view" title="Open Subtopics Calendar View">SUBTOPICS (${routine.subcategories.length}) 📂</button>`;
             } else {
-                subtopicsBtnHtml = ` <button type="button" class="btn-open-sub-view" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 1px 4px; font-size: 0.6rem;" title="Add Subtopics">+ SUBTOPIC</button>`;
+                subtopicsBtnHtml = `<button type="button" class="btn-open-sub-view" style="background: transparent; border: 1px dashed var(--border-color); color: var(--text-muted);" title="Add Subtopics">+ SUBTOPIC</button>`;
             }
 
-            nameTd.innerHTML = `${toggleHtml}<span class="routine-emoji-txt">${Utils.renderEmoji(routine.emoji)}</span> <span class="routine-name-lbl" style="cursor: pointer; font-weight: bold;" title="Edit Routine">${Utils.escapeHtml(routine.name)}</span> ${subtopicsBtnHtml} <span class="btn-edit-routine-icon" style="cursor: pointer; opacity: 0.7; font-size: 0.72rem; margin-left: 2px;" title="Edit Routine Config">✏️</span>`;
+            nameTd.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        ${toggleHtml}
+                        <span class="routine-emoji-txt">${Utils.renderEmoji(routine.emoji)}</span>
+                        <span class="routine-name-lbl" style="cursor: pointer; font-weight: 700;" title="Click to Edit Routine">${Utils.escapeHtml(routine.name)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        ${subtopicsBtnHtml}
+                    </div>
+                </div>
+            `;
 
             if (hasSubcategories) {
                 const toggleBtn = nameTd.querySelector('.btn-toggle-sub');
@@ -442,14 +466,6 @@ const Habits = {
                 subViewBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.openSubtopicView(routine.id);
-                });
-            }
-
-            const editIcon = nameTd.querySelector('.btn-edit-routine-icon');
-            if (editIcon) {
-                editIcon.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.openRoutineModal(routine);
                 });
             }
 
@@ -667,6 +683,7 @@ const Habits = {
     // Routine Forms CRUD Modals & Subtopics Management
     // -------------------------------------------------------------
     openRoutineModal(routine = null) {
+        this.closeSubtopicView();
         const modal = document.getElementById('routine-modal');
         const form = document.getElementById('routine-form');
         const titleEl = document.getElementById('routine-modal-title');
@@ -826,6 +843,7 @@ const Habits = {
             Storage.addXP(15);
         }
 
+        this.currentSubtopicRoutineId = null;
         Storage.saveRoutines(routines);
         this.closeRoutineModal();
         this.renderMatrix();
@@ -1038,17 +1056,11 @@ Requirements:
     openSubtopicView(routineId) {
         this.currentSubtopicRoutineId = routineId;
         
-        const mainView = document.querySelector('.card-matrix:not(#subtopics-detail-view)');
+        const mainView = document.getElementById('main-routines-view');
         const subView = document.getElementById('subtopics-detail-view');
-        const addBtn = document.getElementById('btn-add-routine');
 
         if (mainView) mainView.style.display = 'none';
         if (subView) subView.style.display = 'block';
-
-        if (addBtn) {
-            addBtn.textContent = '+ ADD SUB ROUTINE';
-            addBtn.title = 'Add Sub Routine to current topic';
-        }
 
         this.renderSubtopicView();
     },
@@ -1056,19 +1068,17 @@ Requirements:
     closeSubtopicView() {
         this.currentSubtopicRoutineId = null;
 
-        const mainView = document.querySelector('.card-matrix:not(#subtopics-detail-view)');
+        const mainView = document.getElementById('main-routines-view');
         const subView = document.getElementById('subtopics-detail-view');
-        const addBtn = document.getElementById('btn-add-routine');
 
         if (mainView) mainView.style.display = 'block';
         if (subView) subView.style.display = 'none';
 
+        const addBtn = document.getElementById('btn-add-routine');
         if (addBtn) {
             addBtn.textContent = '+ ADD ROUTINE';
             addBtn.title = 'Add new routine';
         }
-
-        this.renderMatrix();
     },
 
     getCurrentSubtopicRoutine() {
@@ -1177,7 +1187,7 @@ Requirements:
         const nameHeader = document.getElementById('sub-day-name-header');
         const numHeader = document.getElementById('sub-day-num-header');
 
-        weekHeader.innerHTML = '<th rowspan="3" style="border-bottom: 2px solid var(--border-color); min-width: 120px;">SUB ROUTINE</th>';
+        weekHeader.innerHTML = '<th rowspan="3" style="border-bottom: 2px solid var(--border-color); min-width: 150px; text-align: center; font-weight: 800; vertical-align: middle;">SUB ROUTINE</th>';
         nameHeader.innerHTML = '';
         numHeader.innerHTML = '';
 
