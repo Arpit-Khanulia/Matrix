@@ -141,10 +141,6 @@ const Utils = {
     calculateSubtopicGoal(sub, year, monthIndex) {
         if (!sub) return 0;
         const totalDaysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-        if (!sub.startDate && !sub.dueDate) {
-            return totalDaysInMonth;
-        }
-
         const monthStr = String(monthIndex + 1).padStart(2, '0');
         let count = 0;
 
@@ -153,6 +149,14 @@ const Utils = {
             let isActive = true;
             if (sub.startDate && dateStr < sub.startDate) isActive = false;
             if (sub.dueDate && dateStr > sub.dueDate) isActive = false;
+
+            if (isActive && Array.isArray(sub.repeatDays) && sub.repeatDays.length > 0 && sub.repeatDays.length < 7) {
+                const dayOfWeek = new Date(year, monthIndex, day).getDay();
+                if (!sub.repeatDays.includes(dayOfWeek) && !sub.repeatDays.includes(String(dayOfWeek))) {
+                    isActive = false;
+                }
+            }
+
             if (isActive) count++;
         }
 

@@ -384,6 +384,32 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
 }
 
+/* Day Pill Checkboxes for Repeat Days */
+.day-pill-chk {
+    cursor: pointer;
+    user-select: none;
+}
+
+.day-pill-chk span {
+    display: inline-block;
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: #000000;
+    color: var(--text-muted);
+    transition: all var(--transition-fast);
+}
+
+.day-pill-chk input:checked + span {
+    background: var(--accent-color);
+    color: #000000;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 6px var(--accent-glow);
+}
+
 /* Subtopic Sidebar Cards */
 .subtopic-sidebar-card {
     background: #000000;

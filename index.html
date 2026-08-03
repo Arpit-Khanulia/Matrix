@@ -407,6 +407,22 @@
                 </div>
 
                 <div class="form-group">
+                    <label>REPEAT ON SPECIFIC DAYS (OPTIONAL)</label>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;" id="subtopic-repeat-days-group">
+                        <label class="day-pill-chk"><input type="checkbox" value="1" hidden><span>Mon</span></label>
+                        <label class="day-pill-chk"><input type="checkbox" value="2" hidden><span>Tue</span></label>
+                        <label class="day-pill-chk"><input type="checkbox" value="3" hidden><span>Wed</span></label>
+                        <label class="day-pill-chk"><input type="checkbox" value="4" hidden><span>Thu</span></label>
+                        <label class="day-pill-chk"><input type="checkbox" value="5" hidden><span>Fri</span></label>
+                        <label class="day-pill-chk"><input type="checkbox" value="6" hidden><span>Sat</span></label>
+                        <label class="day-pill-chk"><input type="checkbox" value="0" hidden><span>Sun</span></label>
+                    </div>
+                    <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px;">
+                        Check days to repeat (e.g. Every Sun). Leave all unchecked for all days in date period.
+                    </div>
+                </div>
+
+                <div class="form-group">
                     <label for="subtopic-color">GRID HIGHLIGHT COLOR</label>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <input type="color" id="subtopic-color" value="#00f0ff" style="width: 45px; height: 32px; background: #000; border: 1px solid var(--border-color); cursor: pointer; border-radius: var(--radius-sm); padding: 2px;">

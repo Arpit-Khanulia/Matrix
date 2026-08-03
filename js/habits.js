@@ -793,7 +793,7 @@ const Habits = {
 
 Return ONLY a valid raw JSON array of objects with no markdown formatting or extra text outside the JSON array.
 
-Each object can have main topics (like Study, Gym) and optional subcategories (like Networking, DSA under Study). For subcategories, you can specify optional "startDate" and "dueDate" (in YYYY-MM-DD format) and optional "color" (hex color code e.g. #00f0ff, #ff007f, #00ff66, #ffb700, #9d00ff).
+Each object can have main topics (like Study, Gym) and optional subcategories (like Networking, DSA under Study). For subcategories, you can specify optional "startDate" and "dueDate" (in YYYY-MM-DD format), optional "color" (hex color code e.g. #00f0ff, #ff007f), and optional "repeatDays" array (e.g. [0] for every Sunday, [1, 3, 5] for Mon/Wed/Fri, where 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat).
 
 Each object must follow this exact schema:
 [
@@ -806,14 +806,16 @@ Each object must follow this exact schema:
         "name": "Networking",
         "emoji": "🌐",
         "startDate": "2026-08-01",
-        "dueDate": "2026-08-15",
+        "dueDate": "2026-08-31",
+        "repeatDays": [0],
         "color": "#00f0ff"
       },
       {
         "name": "Data Structures & Algorithms",
         "emoji": "💻",
-        "startDate": "2026-08-05",
+        "startDate": "2026-08-01",
         "dueDate": "2026-08-31",
+        "repeatDays": [1, 3, 5],
         "color": "#ff007f"
       }
     ]
@@ -823,7 +825,7 @@ Each object must follow this exact schema:
     "emoji": "🏋️‍♂️",
     "goal": 30,
     "subcategories": [
-      { "name": "Leg Day Routine", "emoji": "🦵", "color": "#00ff66" },
+      { "name": "Leg Day Routine", "emoji": "🦵", "repeatDays": [0, 4], "color": "#00ff66" },
       { "name": "Push Ups & Core", "emoji": "💪", "color": "#ffb700" }
     ]
   }
@@ -833,7 +835,7 @@ Requirements:
 - "name": Concise name of the habit or subtopic.
 - "emoji": A single matching emoji for the habit or subtopic.
 - "goal": Integer representing target days (default 30).
-- "subcategories": Optional array of subtopics with optional "startDate" (YYYY-MM-DD), "dueDate" (YYYY-MM-DD), and "color" (Hex code).`;
+- "subcategories": Optional array of subtopics with optional "startDate" (YYYY-MM-DD), "dueDate" (YYYY-MM-DD), "repeatDays" (array of day numbers 0=Sun..6=Sat), and "color" (Hex code).`;
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(promptText).then(() => {
@@ -906,7 +908,8 @@ Requirements:
                     emoji: (sub.emoji && String(sub.emoji).trim()) ? String(sub.emoji).trim() : '📌',
                     startDate: sub.startDate || sub.start_date || null,
                     dueDate: sub.dueDate || sub.due_date || null,
-                    color: (sub.color && String(sub.color).trim()) ? String(sub.color).trim() : Utils.getRandomVibrantColor()
+                    color: (sub.color && String(sub.color).trim()) ? String(sub.color).trim() : Utils.getRandomVibrantColor(),
+                    repeatDays: Array.isArray(sub.repeatDays || sub.repeat_days) ? (sub.repeatDays || sub.repeat_days).map(d => parseInt(d, 10)).filter(d => !isNaN(d)) : []
                 })).filter(s => s.name !== '') : [];
 
                 validNewRoutines.push({
@@ -1142,15 +1145,22 @@ Requirements:
                     td.className += ' today';
                 }
 
-                // Check active range
+                // Check active range & repeat days
                 let isActiveRange = true;
                 if (sub.startDate && dateStr < sub.startDate) isActiveRange = false;
                 if (sub.dueDate && dateStr > sub.dueDate) isActiveRange = false;
 
+                if (isActiveRange && Array.isArray(sub.repeatDays) && sub.repeatDays.length > 0 && sub.repeatDays.length < 7) {
+                    const dayOfWeek = new Date(year, monthIndex, day).getDay();
+                    if (!sub.repeatDays.includes(dayOfWeek) && !sub.repeatDays.includes(String(dayOfWeek))) {
+                        isActiveRange = false;
+                    }
+                }
+
                 if (!isActiveRange) {
                     td.style.opacity = '0.12';
                     td.innerHTML = '<span style="font-size: 0.6rem; color: var(--text-muted);">-</span>';
-                    td.title = `Inactive outside active dates (${sub.startDate || 'Start'} to ${sub.dueDate || 'Due'})`;
+                    td.title = `Inactive outside active dates or repeat schedule (${sub.startDate || 'Start'} to ${sub.dueDate || 'Due'})`;
                 } else {
                     // Highlight active date period with translucent subtask color
                     td.style.background = `${subColor}22`;
@@ -1218,6 +1228,20 @@ Requirements:
         const defaultColor = subtopic?.color || Utils.getRandomVibrantColor();
         if (colorInput) colorInput.value = defaultColor;
 
+        const group = document.getElementById('subtopic-repeat-days-group');
+        if (group) {
+            const chks = group.querySelectorAll('input[type="checkbox"]');
+            chks.forEach(chk => {
+                chk.checked = false;
+                if (subtopic && Array.isArray(subtopic.repeatDays)) {
+                    const valNum = parseInt(chk.value, 10);
+                    if (subtopic.repeatDays.includes(valNum) || subtopic.repeatDays.includes(chk.value)) {
+                        chk.checked = true;
+                    }
+                }
+            });
+        }
+
         if (subtopic) {
             titleEl.textContent = "EDIT SUB ROUTINE";
             document.getElementById('subtopic-id').value = subtopic.id;
@@ -1255,6 +1279,13 @@ Requirements:
         const colorInput = document.getElementById('subtopic-color');
         const color = colorInput ? colorInput.value : Utils.getRandomVibrantColor();
 
+        const repeatDays = [];
+        const group = document.getElementById('subtopic-repeat-days-group');
+        if (group) {
+            const chks = group.querySelectorAll('input[type="checkbox"]:checked');
+            chks.forEach(chk => repeatDays.push(parseInt(chk.value, 10)));
+        }
+
         if (!parentId || !name) return;
 
         const routines = Storage.getRoutines();
@@ -1272,6 +1303,7 @@ Requirements:
                 sub.startDate = startDate;
                 sub.dueDate = dueDate;
                 sub.color = color;
+                sub.repeatDays = repeatDays;
             }
             Utils.showToast("Sub routine updated!", "success");
         } else {
@@ -1282,7 +1314,8 @@ Requirements:
                 emoji,
                 startDate,
                 dueDate,
-                color
+                color,
+                repeatDays
             });
             Utils.showToast("Sub routine added!", "success");
         }
