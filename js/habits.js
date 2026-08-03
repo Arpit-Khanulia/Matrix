@@ -8,6 +8,29 @@ const Habits = {
     init() {
         this.bindEvents();
         this.initEmojiPicker();
+        this.initDatePickerPopups();
+    },
+
+    initDatePickerPopups() {
+        setTimeout(() => {
+            const bindPopup = (id) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const trigger = (e) => {
+                        if (typeof el.showPicker === 'function') {
+                            try { el.showPicker(); } catch(err){}
+                        }
+                    };
+                    el.addEventListener('click', trigger);
+                    el.addEventListener('focus', trigger);
+                }
+            };
+
+            bindPopup('subtopic-start-date');
+            bindPopup('subtopic-due-date');
+            bindPopup('new-sub-start-date');
+            bindPopup('new-sub-due-date');
+        }, 50);
     },
 
     bindEvents() {
@@ -387,11 +410,17 @@ const Habits = {
             
             let toggleHtml = '';
             if (hasSubcategories) {
-                const subCount = routine.subcategories.length;
-                toggleHtml = `<button type="button" class="btn-toggle-sub" style="background: none; border: none; color: var(--accent-color); cursor: pointer; padding: 0 4px 0 0; font-size: 0.7rem; font-weight: bold;" title="Expand/Collapse Subtopics">${isExpanded ? '▼' : '▶'}</button><span style="font-size: 0.65rem; color: var(--accent-color); margin-right: 4px;">(${subCount})</span>`;
+                toggleHtml = `<button type="button" class="btn-toggle-sub" style="background: none; border: none; color: var(--accent-color); cursor: pointer; padding: 0 4px 0 0; font-size: 0.7rem; font-weight: bold;" title="Expand/Collapse Subtopics">${isExpanded ? '▼' : '▶'}</button>`;
             }
 
-            nameTd.innerHTML = `${toggleHtml}<span class="routine-emoji-txt">${Utils.renderEmoji(routine.emoji)}</span> <span class="routine-name-lbl" style="cursor: pointer;" title="Open Subtopics Calendar View">${Utils.escapeHtml(routine.name)}</span> <span class="btn-edit-routine-icon" style="cursor: pointer; opacity: 0.7; font-size: 0.72rem; margin-left: 4px;" title="Edit Routine Config">✏️</span>`;
+            let subtopicsBtnHtml = '';
+            if (hasSubcategories) {
+                subtopicsBtnHtml = ` <button type="button" class="btn-open-sub-view" style="background: rgba(0,0,0,0.6); border: 1px solid var(--border-color); color: var(--accent-color); cursor: pointer; padding: 1px 5px; font-size: 0.6rem; border-radius: var(--radius-sm);" title="Open Subtopics Calendar View">SUBTOPICS (${routine.subcategories.length}) 📂</button>`;
+            } else {
+                subtopicsBtnHtml = ` <button type="button" class="btn-open-sub-view" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 1px 4px; font-size: 0.6rem;" title="Add Subtopics">+ SUBTOPIC</button>`;
+            }
+
+            nameTd.innerHTML = `${toggleHtml}<span class="routine-emoji-txt">${Utils.renderEmoji(routine.emoji)}</span> <span class="routine-name-lbl" style="cursor: pointer; font-weight: bold;" title="Edit Routine">${Utils.escapeHtml(routine.name)}</span> ${subtopicsBtnHtml} <span class="btn-edit-routine-icon" style="cursor: pointer; opacity: 0.7; font-size: 0.72rem; margin-left: 2px;" title="Edit Routine Config">✏️</span>`;
 
             if (hasSubcategories) {
                 const toggleBtn = nameTd.querySelector('.btn-toggle-sub');
@@ -408,6 +437,14 @@ const Habits = {
                 }
             }
 
+            const subViewBtn = nameTd.querySelector('.btn-open-sub-view');
+            if (subViewBtn) {
+                subViewBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openSubtopicView(routine.id);
+                });
+            }
+
             const editIcon = nameTd.querySelector('.btn-edit-routine-icon');
             if (editIcon) {
                 editIcon.addEventListener('click', (e) => {
@@ -418,9 +455,9 @@ const Habits = {
 
             const nameLbl = nameTd.querySelector('.routine-name-lbl');
             if (nameLbl) {
-                nameLbl.addEventListener('click', () => this.openSubtopicView(routine.id));
+                nameLbl.addEventListener('click', () => this.openRoutineModal(routine));
             } else {
-                nameTd.addEventListener('click', () => this.openSubtopicView(routine.id));
+                nameTd.addEventListener('click', () => this.openRoutineModal(routine));
             }
 
             // Goal target cell
@@ -666,6 +703,7 @@ const Habits = {
 
         this.renderSubcategoriesList();
         modal.classList.add('show');
+        this.initDatePickerPopups();
     },
 
     renderSubcategoriesList() {
@@ -1284,6 +1322,7 @@ Requirements:
         }
 
         modal.classList.add('show');
+        this.initDatePickerPopups();
     },
 
     closeSubtopicModal() {
